@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Badri's Game Zone</title>
+    <meta name="description" content="A hub of fun little browser games for Badri." />
+    <!-- Emoji favicon so the tab looks fun too (no image file needed). -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <main class="hub">
+      <header class="hub__header">
+        <h1 class="hub__title">Badri's Game Zone</h1>
+        <p class="hub__subtitle">Pick a game and press play! 🎉</p>
+      </header>
+
+      <!-- Tiles are rendered by the script below from the GAMES list. -->
+      <ul class="tile-grid" id="tileGrid"></ul>
+
+      <footer class="hub__footer">
+        <p>More games are being built right now… come back soon! 🚧</p>
+      </footer>
+    </main>
+
+    <script>
+      /* ======================================================================
+         GAMES LIST — this is the only thing you edit to add/unlock a game.
+         ----------------------------------------------------------------------
+         To turn a "Coming Soon" tile into a real game:
+           1. Build the game inside its folder (index.html + style.css + game.js).
+           2. Change that game's  locked: true  ->  locked: false  below.
+         That's it. Nothing else in the hub needs to change.
+
+         To add a brand new game, copy one of these objects and fill it in:
+           id      : folder name inside games/
+           name    : shown on the tile
+           icon    : one emoji
+           tagline : 3-5 words
+           color   : any CSS colour (or a --var from style.css)
+           locked  : true = dimmed "Coming Soon" tile, false = playable link
+         ====================================================================== */
+      const GAMES = [
+        {
+          id: "dino-runner",
+          name: "Dino Runner",
+          icon: "🦖",
+          tagline: "Jump and duck to survive",
+          color: "var(--green)",
+          locked: false,
+        },
+        {
+          id: "snake",
+          name: "Snake",
+          icon: "🐍",
+          tagline: "Eat dots and grow!",
+          color: "var(--teal)",
+          locked: false,
+        },
+        {
+          id: "fruit-catcher",
+          name: "Fruit Catcher",
+          icon: "🍎",
+          tagline: "Catch the falling fruit",
+          color: "var(--red)",
+          locked: false,
+        },
+        {
+          id: "bubble-pop",
+          name: "Bubble Pop",
+          icon: "🫧",
+          tagline: "Pop every floating bubble",
+          color: "var(--teal)",
+          locked: true,
+        },
+        {
+          id: "whack-a-mole",
+          name: "Whack-a-Mole",
+          icon: "🐹",
+          tagline: "Tap the peeking moles",
+          color: "var(--orange)",
+          locked: true,
+        },
+        {
+          id: "maze-escape",
+          name: "Maze Escape",
+          icon: "🧩",
+          tagline: "Find the way out",
+          color: "var(--purple)",
+          locked: true,
+        },
+        {
+          id: "target-archery",
+          name: "Target Archery",
+          icon: "🏹",
+          tagline: "Hit the bullseye",
+          color: "var(--pink)",
+          locked: true,
+        },
+        {
+          id: "memory-match",
+          name: "Memory Match",
+          icon: "🃏",
+          tagline: "Find the matching pairs",
+          color: "var(--blue)",
+          locked: true,
+        },
+      ];
+
+      /* ----------------------------------------------------------------------
+         Tile rendering. Playable games become <a> links, locked ones become
+         plain <div>s so they cannot be clicked or tabbed into.
+         ---------------------------------------------------------------------- */
+      const grid = document.getElementById("tileGrid");
+
+      for (const game of GAMES) {
+        const item = document.createElement("li");
+        const tile = document.createElement(game.locked ? "div" : "a");
+
+        tile.className = "tile " + (game.locked ? "tile--locked" : "tile--playable");
+        tile.style.setProperty("--tile-color", game.color);
+
+        if (!game.locked) {
+          tile.href = `games/${game.id}/index.html`;
+          tile.setAttribute("aria-label", `Play ${game.name}`);
+        } else {
+          tile.setAttribute("aria-disabled", "true");
+        }
+
+        tile.innerHTML = `
+          ${game.locked ? '<span class="tile__lock" aria-hidden="true">🔒</span>' : ""}
+          <span class="tile__icon" aria-hidden="true">${game.icon}</span>
+          <h2 class="tile__name">${game.name}</h2>
+          <p class="tile__tagline">${game.tagline}</p>
+          <span class="tile__cta">${game.locked ? "Coming Soon" : "Play ▶"}</span>
+        `;
+
+        item.appendChild(tile);
+        grid.appendChild(item);
+      }
+    </script>
+  </body>
+</html>

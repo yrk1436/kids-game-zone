@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Snake — Badri's Game Zone</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐍</text></svg>"
+    />
+    <!-- Shared theme first, then this game's own styles. -->
+    <link rel="stylesheet" href="../../style.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body class="game-page">
+    <!-- Top bar: back button, title, live scores, sound toggle ------------- -->
+    <header class="game-bar">
+      <a class="btn btn--purple" href="../../index.html">⬅️ Back to Games</a>
+
+      <h1 class="game-bar__title">🐍 Snake</h1>
+
+      <div class="scoreboard">
+        <div class="score-chip score-chip--level" id="levelChip">
+          <span class="score-chip__label">Level</span>
+          <span class="score-chip__value" id="levelValue">1</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Score</span>
+          <span class="score-chip__value" id="scoreValue">0</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Best</span>
+          <span class="score-chip__value" id="bestValue">0</span>
+        </div>
+      </div>
+
+      <button
+        class="btn btn--orange btn--icon"
+        id="soundButton"
+        type="button"
+        aria-pressed="true"
+        title="Turn sound on or off"
+      >
+        🔊
+      </button>
+    </header>
+
+    <!-- The stage keeps a fixed 3:2 shape so the board never stretches. ----->
+    <div class="stage" id="stage">
+      <canvas id="gameCanvas" aria-label="Snake game board" role="img"></canvas>
+
+      <!-- START screen -->
+      <div class="overlay" id="startOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">🐍</p>
+          <h2 class="overlay__title">Feed the snake!</h2>
+          <p class="overlay__text">
+            Steer with the <strong>arrow keys</strong>, a <strong>swipe</strong>, or the buttons
+            below. Gobble the blinking dots to grow — eat enough to <strong>level up</strong> and
+            speed up, but don't bite your own tail!
+          </p>
+          <button class="btn btn--green overlay__btn" id="startButton" type="button">Start ▶</button>
+        </div>
+      </div>
+
+      <!-- PAUSED screen (shown if you switch tabs mid-game) -->
+      <div class="overlay is-hidden" id="pauseOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">⏸️</p>
+          <h2 class="overlay__title">Paused</h2>
+          <button class="btn btn--green overlay__btn" id="resumeButton" type="button">Keep Playing ▶</button>
+        </div>
+      </div>
+
+      <!-- GAME OVER screen -->
+      <div class="overlay is-hidden" id="gameOverOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji" id="gameOverEmoji">💥</p>
+          <h2 class="overlay__title" id="gameOverTitle">Oops!</h2>
+          <p class="overlay__best is-hidden" id="newBestBanner">🎉 New Best Score! 🎉</p>
+          <p class="overlay__score">Score: <strong id="finalScore">0</strong></p>
+          <p class="overlay__text">
+            Best: <strong id="finalBest">0</strong> &nbsp;•&nbsp; Level
+            <strong id="finalLevel">1</strong> &nbsp;•&nbsp; Length
+            <strong id="finalLength">3</strong>
+          </p>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="playAgainButton" type="button">
+              Play Again 🔁
+            </button>
+            <a class="btn btn--purple overlay__btn" href="../../index.html">⬅️ Back to Games</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- On-screen D-pad for touch. Also works with mouse and is keyboard
+         reachable. Arrow keys / WASD and swiping the board do the same thing. -->
+    <div class="dpad" id="dpad" aria-label="Direction controls">
+      <button class="dpad__btn dpad__btn--up" data-dir="up" type="button" aria-label="Up">⬆️</button>
+      <button class="dpad__btn dpad__btn--left" data-dir="left" type="button" aria-label="Left">⬅️</button>
+      <button class="dpad__btn dpad__btn--right" data-dir="right" type="button" aria-label="Right">➡️</button>
+      <button class="dpad__btn dpad__btn--down" data-dir="down" type="button" aria-label="Down">⬇️</button>
+    </div>
+
+    <p class="hint">
+      Tip: swipe the board or press the <kbd>arrow keys</kbd> to turn. Eat the dot to grow!
+    </p>
+
+    <script src="game.js"></script>
+  </body>
+</html>
