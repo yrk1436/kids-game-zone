@@ -45,6 +45,15 @@
       </div>
 
       <button
+        class="btn btn--icon btn--help"
+        id="helpButton"
+        type="button"
+        title="How to play"
+      >
+        ❓
+      </button>
+
+      <button
         class="btn btn--orange btn--icon"
         id="soundButton"
         type="button"
@@ -62,6 +71,11 @@
       <!-- Slow-mo visual overlay -->
       <div class="slowmo-tint is-hidden" id="slowmoTint"></div>
 
+      <!-- Level-up toast (non-blocking) -->
+      <div class="level-toast is-hidden" id="levelToast">
+        <span class="level-toast__text" id="levelToastText">Level 2!</span>
+      </div>
+
       <!-- START screen -->
       <div class="overlay" id="startOverlay">
         <div class="overlay__card">
@@ -69,9 +83,12 @@
           <h2 class="overlay__title">Pop the Bubbles!</h2>
           <p class="overlay__text">
             Tap or click bubbles to pop them before they float away!<br />
-            Complete each level to unlock special bubbles!
+            Pop quickly for combos! Watch for special bubbles!
           </p>
-          <button class="btn btn--green overlay__btn" id="startButton" type="button">Start Popping ▶</button>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="startButton" type="button">Start Popping ▶</button>
+            <button class="btn btn--icon btn--help-start" id="helpButtonStart" type="button" title="How to play">❓ How to Play</button>
+          </div>
         </div>
       </div>
 
@@ -84,18 +101,62 @@
         </div>
       </div>
 
-      <!-- LEVEL COMPLETE screen -->
-      <div class="overlay is-hidden" id="levelOverlay">
-        <div class="overlay__card overlay__card--level">
-          <p class="overlay__emoji">🎉</p>
-          <h2 class="overlay__title" id="levelCompleteTitle">Level 1 Complete!</h2>
-          <p class="overlay__stars" id="levelStars">⭐⭐⭐</p>
-          <p class="overlay__text" id="levelMessage">Perfect! No lives lost!</p>
-          <button class="btn btn--green overlay__btn" id="nextLevelButton" type="button">Next Level ▶</button>
+      <!-- HOW TO PLAY panel -->
+      <div class="overlay is-hidden" id="helpOverlay">
+        <div class="overlay__card overlay__card--help">
+          <h2 class="overlay__title">How to Play</h2>
+          
+          <div class="help-section">
+            <h3 class="help-section__title">🎯 Goal</h3>
+            <p class="help-section__text">Pop bubbles before they escape! Complete each level's goal to advance.</p>
+          </div>
+
+          <div class="help-section">
+            <h3 class="help-section__title">🫧 Bubbles</h3>
+            <div class="help-bubbles">
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--normal">🫧</span>
+                <span class="help-bubble__name">Normal</span>
+                <span class="help-bubble__desc">Pop for points!</span>
+              </div>
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--gold">⭐</span>
+                <span class="help-bubble__name">Gold</span>
+                <span class="help-bubble__desc">5x points!</span>
+              </div>
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--heart">❤️</span>
+                <span class="help-bubble__name">Heart</span>
+                <span class="help-bubble__desc">+1 life</span>
+              </div>
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--slowmo">🐌</span>
+                <span class="help-bubble__name">Slow-Mo</span>
+                <span class="help-bubble__desc">Slows time 5s</span>
+              </div>
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--rainbow">🌈</span>
+                <span class="help-bubble__name">Rainbow</span>
+                <span class="help-bubble__desc">Pops all!</span>
+              </div>
+              <div class="help-bubble help-bubble--danger">
+                <span class="help-bubble__icon help-bubble__icon--bomb">💣</span>
+                <span class="help-bubble__name">Bomb</span>
+                <span class="help-bubble__desc">AVOID! -1 life</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="help-section">
+            <h3 class="help-section__title">⚡ Combos</h3>
+            <p class="help-section__text">Pop bubbles quickly for x2, x3, x4, x5 score multipliers!</p>
+          </div>
+
+          <button class="btn btn--green overlay__btn" id="closeHelpButton" type="button">Got it! ▶</button>
         </div>
       </div>
 
-      <!-- NEW SPECIAL BUBBLE intro screen -->
+      <!-- NEW SPECIAL BUBBLE intro screen (first time only) -->
       <div class="overlay is-hidden" id="newBubbleOverlay">
         <div class="overlay__card overlay__card--newbubble">
           <p class="overlay__emoji" id="newBubbleEmoji">⭐</p>

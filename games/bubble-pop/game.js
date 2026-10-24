@@ -1,11 +1,12 @@
 /* ==========================================================================
    BUBBLE POP  🫧
-   A gentle, tap-to-pop bubble game for a 7-year-old.
+   A fast-paced, tap-to-pop bubble game.
 
    Features:
-   - Levels with goals and star ratings
-   - Special bubbles introduced each level
+   - Levels with goals (no blocking transitions)
+   - Special bubbles (intro shown first time ever via localStorage)
    - Combo system for quick pops
+   - Help panel explaining all bubble types
    ========================================================================== */
 
 (function () {
@@ -24,13 +25,13 @@
     BUBBLE_MAX_RADIUS: 50,
     BUBBLE_TAP_PADDING: 14,
 
-    BUBBLE_BASE_SPEED: 45,
-    BUBBLE_SPEED_VARIANCE: 25,
+    BUBBLE_BASE_SPEED: 70,
+    BUBBLE_SPEED_VARIANCE: 35,
 
     POINTS_BASE: 10,
     POINTS_PER_SIZE: 0.25,
 
-    GRACE_PERIOD: 4,
+    GRACE_PERIOD: 2,
 
     POP_PARTICLE_COUNT: 12,
     POP_ANIMATION_DURATION: 0.35,
@@ -41,24 +42,35 @@
     SLOWMO_DURATION: 5,
     SLOWMO_FACTOR: 0.4,
 
-    SPECIAL_CHANCE_BASE: 0.08,
+    LEVEL_TOAST_DURATION: 1.0,
 
     STORAGE_BEST: "badri.bubble-pop.best",
     STORAGE_BEST_LEVEL: "badri.bubble-pop.bestLevel",
     STORAGE_SOUND: "badri.bubble-pop.sound",
+    STORAGE_SEEN_UNLOCKS: "badri.bubble-pop.seenUnlocks",
   };
 
+  // Speed values: OLD level 7-8 becomes NEW level 1, then ramps up noticeably
+  // Old L7: spawnInterval 0.9, speedMult 1.2
+  // Old L8: spawnInterval 0.85, speedMult 1.3
   const LEVELS = [
-    { goal: 10, spawnInterval: 2.0, speedMult: 0.7, specialChance: 0 },
-    { goal: 12, spawnInterval: 1.8, speedMult: 0.75, specialChance: 0.06, unlock: "gold" },
-    { goal: 15, spawnInterval: 1.5, speedMult: 0.85, specialChance: 0.07, unlock: "heart" },
-    { goal: 18, spawnInterval: 1.3, speedMult: 0.95, specialChance: 0.08, unlock: "slowmo" },
-    { goal: 20, spawnInterval: 1.1, speedMult: 1.0, specialChance: 0.09, unlock: "rainbow" },
-    { goal: 22, spawnInterval: 1.0, speedMult: 1.1, specialChance: 0.10, unlock: "bomb" },
-    { goal: 25, spawnInterval: 0.9, speedMult: 1.2, specialChance: 0.11 },
-    { goal: 28, spawnInterval: 0.85, speedMult: 1.3, specialChance: 0.12 },
-    { goal: 30, spawnInterval: 0.8, speedMult: 1.4, specialChance: 0.13 },
-    { goal: 35, spawnInterval: 0.75, speedMult: 1.5, specialChance: 0.14 },
+    // L1: Start at what was ~L7 speed
+    { goal: 15, spawnInterval: 0.85, speedMult: 1.25, specialChance: 0.08 },
+    // L2: Introduce gold, slightly faster
+    { goal: 18, spawnInterval: 0.75, speedMult: 1.4, specialChance: 0.09, unlock: "gold" },
+    // L3: Introduce heart, faster still
+    { goal: 20, spawnInterval: 0.65, speedMult: 1.55, specialChance: 0.10, unlock: "heart" },
+    // L4: Introduce slow-mo
+    { goal: 22, spawnInterval: 0.55, speedMult: 1.7, specialChance: 0.11, unlock: "slowmo" },
+    // L5: Introduce rainbow
+    { goal: 25, spawnInterval: 0.48, speedMult: 1.85, specialChance: 0.12, unlock: "rainbow" },
+    // L6: Introduce bomb - danger!
+    { goal: 28, spawnInterval: 0.42, speedMult: 2.0, specialChance: 0.13, unlock: "bomb" },
+    // L7+: Keep ramping
+    { goal: 30, spawnInterval: 0.38, speedMult: 2.15, specialChance: 0.14 },
+    { goal: 32, spawnInterval: 0.34, speedMult: 2.3, specialChance: 0.15 },
+    { goal: 35, spawnInterval: 0.30, speedMult: 2.5, specialChance: 0.16 },
+    { goal: 40, spawnInterval: 0.26, speedMult: 2.7, specialChance: 0.17 },
   ];
 
   const SPECIAL_TYPES = {
@@ -149,20 +161,21 @@
     best: loadBest(),
     bestLevel: loadBestLevel(),
     lives: CONFIG.MAX_LIVES,
-    livesLostThisLevel: 0,
     spawnTimer: 0,
     gameOverTimer: 0,
 
     level: 1,
     poppedThisLevel: 0,
-    shownUnlocks: {},
 
     combo: 0,
     lastPopTime: -10,
 
     slowmoTimer: 0,
 
+    levelToastTimer: 0,
+
     pendingUnlock: null,
+    seenUnlocks: loadSeenUnlocks(),
 
     bubbles: [],
     particles: [],
@@ -194,13 +207,16 @@
       return;
     }
 
-    if (phase === "paused") {
-      resumeRun();
+    if (phase === "paused" || phase === "help") {
       return;
     }
 
     if (phase === "over") {
       if (game.gameOverTimer > 0.5) startRun();
+      return;
+    }
+
+    if (phase === "newBubbleIntro") {
       return;
     }
 
@@ -333,7 +349,7 @@
   }
 
   /* ======================================================================
-     5. LEVEL SYSTEM
+     5. LEVEL SYSTEM (non-blocking transitions)
      ====================================================================== */
   function getLevelConfig() {
     const idx = Math.min(game.level - 1, LEVELS.length - 1);
@@ -341,55 +357,46 @@
   }
 
   function completeLevel() {
-    phase = "levelComplete";
-    
-    const livesLost = game.livesLostThisLevel;
-    let stars = 3;
-    if (livesLost === 1) stars = 2;
-    else if (livesLost >= 2) stars = 1;
-
-    const starText = "⭐".repeat(stars) + "☆".repeat(3 - stars);
-    let message = "";
-    if (stars === 3) message = "Perfect! No lives lost!";
-    else if (stars === 2) message = "Great job!";
-    else message = "Level complete!";
-
-    levelCompleteTitleEl.textContent = "Level " + game.level + " Complete!";
-    levelStarsEl.textContent = starText;
-    levelMessageEl.textContent = message;
-
     if (game.level > game.bestLevel) {
       game.bestLevel = game.level;
       saveBestLevel(game.level);
     }
 
-    playLevelComplete();
-    spawnConfetti();
-
-    setTimeout(function () {
-      if (phase === "levelComplete") showOverlay(levelOverlay);
-    }, 400);
-  }
-
-  function startNextLevel() {
-    hideOverlay(levelOverlay);
-    
     game.level++;
     game.poppedThisLevel = 0;
-    game.livesLostThisLevel = 0;
     game.combo = 0;
     game.lastPopTime = -10;
-    
+
+    playLevelComplete();
+
     const cfg = getLevelConfig();
-    if (cfg.unlock && !game.shownUnlocks[cfg.unlock]) {
+    
+    // Check if this level unlocks a new bubble type (first time ever)
+    if (cfg.unlock && !game.seenUnlocks[cfg.unlock]) {
       game.pendingUnlock = cfg.unlock;
       showNewBubbleIntro(cfg.unlock);
     } else {
-      phase = "running";
+      // Non-blocking toast
+      showLevelToast();
     }
-    
+
     updateLevelDisplay();
     updateLevelProgress();
+  }
+
+  function showLevelToast() {
+    game.levelToastTimer = CONFIG.LEVEL_TOAST_DURATION;
+    levelToastText.textContent = "Level " + game.level + "!";
+    levelToast.classList.remove("is-hidden");
+    
+    // Re-trigger animation
+    levelToast.style.animation = "none";
+    void levelToast.offsetWidth;
+    levelToast.style.animation = "";
+  }
+
+  function hideLevelToast() {
+    levelToast.classList.add("is-hidden");
   }
 
   function showNewBubbleIntro(type) {
@@ -404,7 +411,10 @@
       newBubbleNameEl.style.color = "";
     }
     
-    game.shownUnlocks[type] = true;
+    // Mark as seen globally (persists across sessions)
+    game.seenUnlocks[type] = true;
+    saveSeenUnlocks(game.seenUnlocks);
+    
     phase = "newBubbleIntro";
     showOverlay(newBubbleOverlay);
   }
@@ -412,17 +422,43 @@
   function dismissNewBubbleIntro() {
     hideOverlay(newBubbleOverlay);
     game.pendingUnlock = null;
+    showLevelToast();
     phase = "running";
   }
 
   /* ======================================================================
-     6. RUN LIFECYCLE
+     6. HELP PANEL
+     ====================================================================== */
+  function showHelp() {
+    if (phase === "running") {
+      phase = "help";
+      game.combo = 0;
+    } else if (phase === "ready") {
+      phase = "help";
+    }
+    showOverlay(helpOverlay);
+  }
+
+  function hideHelp() {
+    hideOverlay(helpOverlay);
+    if (phase === "help") {
+      // Return to previous state
+      if (game.elapsed > 0) {
+        phase = "running";
+      } else {
+        phase = "ready";
+        showOverlay(startOverlay);
+      }
+    }
+  }
+
+  /* ======================================================================
+     7. RUN LIFECYCLE
      ====================================================================== */
   function startRun() {
     game.elapsed = 0;
     game.score = 0;
     game.lives = CONFIG.MAX_LIVES;
-    game.livesLostThisLevel = 0;
     game.spawnTimer = 0;
     game.gameOverTimer = 0;
     game.level = 1;
@@ -430,6 +466,7 @@
     game.combo = 0;
     game.lastPopTime = -10;
     game.slowmoTimer = 0;
+    game.levelToastTimer = 0;
     game.pendingUnlock = null;
     game.bubbles.length = 0;
     game.particles.length = 0;
@@ -437,12 +474,13 @@
     game.floatingTexts.length = 0;
 
     slowmoTint.classList.add("is-hidden");
+    hideLevelToast();
 
     hideOverlay(startOverlay);
     hideOverlay(pauseOverlay);
     hideOverlay(gameOverOverlay);
-    hideOverlay(levelOverlay);
     hideOverlay(newBubbleOverlay);
+    hideOverlay(helpOverlay);
     
     updateScoreDisplay();
     updateLivesDisplay();
@@ -469,6 +507,7 @@
     game.gameOverTimer = 0;
     game.slowmoTimer = 0;
     slowmoTint.classList.add("is-hidden");
+    hideLevelToast();
     playGameOver();
 
     const finalScore = Math.floor(game.score);
@@ -494,12 +533,20 @@
   }
 
   /* ======================================================================
-     7. UPDATE
+     8. UPDATE
      ====================================================================== */
   function update(dt) {
     updateParticles(dt);
     updatePopEffects(dt);
     updateFloatingTexts(dt);
+
+    // Update toast timer even when paused for visual
+    if (game.levelToastTimer > 0) {
+      game.levelToastTimer -= dt;
+      if (game.levelToastTimer <= 0) {
+        hideLevelToast();
+      }
+    }
 
     if (phase === "over") {
       game.gameOverTimer += dt;
@@ -561,7 +608,6 @@
 
   function loseLife() {
     game.lives--;
-    game.livesLostThisLevel++;
     game.combo = 0;
     updateLivesDisplay();
     playMiss();
@@ -720,7 +766,7 @@
   }
 
   /* ======================================================================
-     8. DRAW
+     9. DRAW
      ====================================================================== */
   function draw() {
     const W = CONFIG.WORLD_W;
@@ -879,7 +925,7 @@
   }
 
   function drawBombBubble(bubble) {
-    const { x, y, radius, shimmer, spikePulse } = bubble;
+    const { x, y, radius, spikePulse } = bubble;
 
     ctx.save();
 
@@ -1019,7 +1065,7 @@
   }
 
   /* ======================================================================
-     9. MAIN LOOP
+     10. MAIN LOOP
      ====================================================================== */
   let lastTime = 0;
 
@@ -1034,14 +1080,16 @@
   }
 
   /* ======================================================================
-     10. OVERLAYS + DISPLAY
+     11. OVERLAYS + DISPLAY
      ====================================================================== */
   const startOverlay = document.getElementById("startOverlay");
   const pauseOverlay = document.getElementById("pauseOverlay");
   const gameOverOverlay = document.getElementById("gameOverOverlay");
-  const levelOverlay = document.getElementById("levelOverlay");
   const newBubbleOverlay = document.getElementById("newBubbleOverlay");
+  const helpOverlay = document.getElementById("helpOverlay");
   const slowmoTint = document.getElementById("slowmoTint");
+  const levelToast = document.getElementById("levelToast");
+  const levelToastText = document.getElementById("levelToastText");
 
   const scoreValueEl = document.getElementById("scoreValue");
   const bestValueEl = document.getElementById("bestValue");
@@ -1057,10 +1105,6 @@
   const finalBestLevelEl = document.getElementById("finalBestLevel");
   const newBestBanner = document.getElementById("newBestBanner");
   const gameOverEmoji = document.getElementById("gameOverEmoji");
-
-  const levelCompleteTitleEl = document.getElementById("levelCompleteTitle");
-  const levelStarsEl = document.getElementById("levelStars");
-  const levelMessageEl = document.getElementById("levelMessage");
 
   const newBubbleEmojiEl = document.getElementById("newBubbleEmoji");
   const newBubbleNameEl = document.getElementById("newBubbleName");
@@ -1124,20 +1168,27 @@
     resumeAudio();
     resumeRun();
   });
-  document.getElementById("nextLevelButton").addEventListener("click", function () {
-    resumeAudio();
-    startNextLevel();
-  });
   document.getElementById("gotItButton").addEventListener("click", function () {
     resumeAudio();
     dismissNewBubbleIntro();
   });
+  document.getElementById("helpButton").addEventListener("click", function () {
+    showHelp();
+  });
+  document.getElementById("helpButtonStart").addEventListener("click", function () {
+    showHelp();
+  });
+  document.getElementById("closeHelpButton").addEventListener("click", function () {
+    hideHelp();
+  });
 
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden) pauseRun();
+    if (document.hidden && phase === "running") pauseRun();
     lastTime = 0;
   });
-  window.addEventListener("blur", pauseRun);
+  window.addEventListener("blur", function () {
+    if (phase === "running") pauseRun();
+  });
 
   /* --- localStorage ------------------------------------------------------- */
   function loadBest() {
@@ -1170,8 +1221,23 @@
     } catch (err) {}
   }
 
+  function loadSeenUnlocks() {
+    try {
+      const saved = window.localStorage.getItem(CONFIG.STORAGE_SEEN_UNLOCKS);
+      return saved ? JSON.parse(saved) : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function saveSeenUnlocks(obj) {
+    try {
+      window.localStorage.setItem(CONFIG.STORAGE_SEEN_UNLOCKS, JSON.stringify(obj));
+    } catch (err) {}
+  }
+
   /* ======================================================================
-     11. SOUND
+     12. SOUND
      ====================================================================== */
   const soundButton = document.getElementById("soundButton");
   let soundOn = loadSoundPref();
@@ -1313,7 +1379,7 @@
 
   function playLevelComplete() {
     if (!soundOn || !audioCtx) return;
-    playNotes([523, 659, 784, 880, 1047], 100, 0.2, 0.1);
+    playNotes([659, 784, 880], 80, 0.15, 0.1);
   }
 
   function playFanfare() {
@@ -1341,7 +1407,7 @@
   }
 
   /* ======================================================================
-     12. BOOT
+     13. BOOT
      ====================================================================== */
   resizeCanvas();
   renderSoundButton();
