@@ -141,7 +141,9 @@
       hole.className = "hole";
       hole.innerHTML = `
         <div class="hole__inner"></div>
-        <div class="mole" data-index="${i}">🐹</div>
+        <div class="hole__clip">
+          <div class="mole" data-index="${i}">🐹</div>
+        </div>
         <div class="hole__dirt"></div>
       `;
       hole.addEventListener("pointerdown", function (e) {
