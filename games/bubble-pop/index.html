@@ -24,6 +24,12 @@
       <h1 class="game-bar__title">🫧 Bubble Pop</h1>
 
       <div class="scoreboard">
+        <div class="score-chip score-chip--level" id="levelChip">
+          <span class="score-chip__label">Level <span id="levelValue">1</span></span>
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-bar__fill" id="progressFill"></div>
+          </div>
+        </div>
         <div class="score-chip score-chip--lives" id="livesChip">
           <span class="score-chip__label">Lives</span>
           <span class="score-chip__value" id="livesValue">❤️❤️❤️❤️❤️</span>
@@ -53,6 +59,9 @@
     <div class="stage" id="stage">
       <canvas id="gameCanvas" aria-label="Bubble Pop game" role="img"></canvas>
 
+      <!-- Slow-mo visual overlay -->
+      <div class="slowmo-tint is-hidden" id="slowmoTint"></div>
+
       <!-- START screen -->
       <div class="overlay" id="startOverlay">
         <div class="overlay__card">
@@ -60,7 +69,7 @@
           <h2 class="overlay__title">Pop the Bubbles!</h2>
           <p class="overlay__text">
             Tap or click bubbles to pop them before they float away!<br />
-            Don't let too many escape!
+            Complete each level to unlock special bubbles!
           </p>
           <button class="btn btn--green overlay__btn" id="startButton" type="button">Start Popping ▶</button>
         </div>
@@ -75,6 +84,28 @@
         </div>
       </div>
 
+      <!-- LEVEL COMPLETE screen -->
+      <div class="overlay is-hidden" id="levelOverlay">
+        <div class="overlay__card overlay__card--level">
+          <p class="overlay__emoji">🎉</p>
+          <h2 class="overlay__title" id="levelCompleteTitle">Level 1 Complete!</h2>
+          <p class="overlay__stars" id="levelStars">⭐⭐⭐</p>
+          <p class="overlay__text" id="levelMessage">Perfect! No lives lost!</p>
+          <button class="btn btn--green overlay__btn" id="nextLevelButton" type="button">Next Level ▶</button>
+        </div>
+      </div>
+
+      <!-- NEW SPECIAL BUBBLE intro screen -->
+      <div class="overlay is-hidden" id="newBubbleOverlay">
+        <div class="overlay__card overlay__card--newbubble">
+          <p class="overlay__emoji" id="newBubbleEmoji">⭐</p>
+          <h2 class="overlay__title">New Bubble!</h2>
+          <p class="overlay__newbubble-name" id="newBubbleName">Gold Bubble</p>
+          <p class="overlay__text" id="newBubbleDesc">Worth 5x points!</p>
+          <button class="btn btn--green overlay__btn" id="gotItButton" type="button">Got it! ▶</button>
+        </div>
+      </div>
+
       <!-- GAME OVER screen -->
       <div class="overlay is-hidden" id="gameOverOverlay">
         <div class="overlay__card">
@@ -82,7 +113,10 @@
           <h2 class="overlay__title">Game Over!</h2>
           <p class="overlay__best is-hidden" id="newBestBanner">🎉 New Best Score! 🎉</p>
           <p class="overlay__score">Score: <strong id="finalScore">0</strong></p>
-          <p class="overlay__text">Best: <strong id="finalBest">0</strong></p>
+          <p class="overlay__text">
+            Best: <strong id="finalBest">0</strong><br />
+            Reached Level: <strong id="finalLevel">1</strong> (Best: <strong id="finalBestLevel">1</strong>)
+          </p>
           <div class="overlay__buttons">
             <button class="btn btn--green overlay__btn" id="playAgainButton" type="button">
               Play Again 🔁
@@ -94,7 +128,7 @@
     </div>
 
     <p class="hint">
-      Tip: Tap bubbles quickly before they escape! Bigger bubbles = more points!
+      Tip: Pop bubbles quickly for combos! Watch out for special bubbles!
     </p>
 
     <script src="game.js"></script>

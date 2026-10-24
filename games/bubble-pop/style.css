@@ -39,6 +39,74 @@ canvas {
 }
 
 /* --------------------------------------------------------------------------
+   Slow-mo visual tint overlay
+   -------------------------------------------------------------------------- */
+.slowmo-tint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(155, 93, 229, 0.15) 0%, rgba(45, 156, 255, 0.2) 100%);
+  pointer-events: none;
+  animation: slowmo-pulse 1s ease-in-out infinite;
+}
+
+.slowmo-tint.is-hidden {
+  display: none;
+}
+
+@keyframes slowmo-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Level chip with progress bar in the top bar
+   -------------------------------------------------------------------------- */
+.score-chip--level {
+  border-color: var(--green);
+  background: linear-gradient(180deg, #e8fff0, #fff);
+  min-width: 100px;
+}
+
+.score-chip--level .score-chip__label {
+  font-size: 0.85rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e0e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--teal));
+  border-radius: 4px;
+  transition: width 0.3s ease-out;
+  width: 0%;
+}
+
+.score-chip--level.is-complete {
+  animation: level-complete 0.5s ease-out;
+}
+
+@keyframes level-complete {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 20px rgba(46, 196, 106, 0.5);
+  }
+}
+
+/* --------------------------------------------------------------------------
    Lives chip with hearts in the top bar
    -------------------------------------------------------------------------- */
 .score-chip--lives {
@@ -55,6 +123,10 @@ canvas {
   animation: hurt-shake 0.4s ease-out;
 }
 
+.score-chip--lives.is-healed {
+  animation: heal-pulse 0.5s ease-out;
+}
+
 @keyframes hurt-shake {
   0%, 100% {
     transform: translateX(0);
@@ -67,9 +139,18 @@ canvas {
   }
 }
 
+@keyframes heal-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 20px rgba(255, 77, 77, 0.5);
+  }
+}
+
 /* --------------------------------------------------------------------------
-   Overlays (start / paused / game over) sit on top of the canvas as real HTML
-   so the buttons are big, tappable and keyboard accessible.
+   Overlays (start / paused / game over / level complete / new bubble)
    -------------------------------------------------------------------------- */
 .overlay {
   position: absolute;
@@ -81,6 +162,7 @@ canvas {
   background: rgba(31, 42, 68, 0.35);
   backdrop-filter: blur(3px);
   animation: overlay-in 0.22s ease-out;
+  z-index: 10;
 }
 
 .overlay.is-hidden {
@@ -107,6 +189,14 @@ canvas {
   border-radius: var(--radius-lg);
   box-shadow: 0 14px 0 rgba(31, 42, 68, 0.15), 0 24px 44px rgba(31, 42, 68, 0.3);
   animation: card-pop 0.32s cubic-bezier(0.18, 1.3, 0.5, 1);
+}
+
+.overlay__card--level {
+  border-color: var(--yellow);
+}
+
+.overlay__card--newbubble {
+  border-color: var(--purple);
 }
 
 @keyframes card-pop {
@@ -153,6 +243,37 @@ canvas {
 
 .overlay__btn {
   min-width: 190px;
+}
+
+/* Stars display for level complete */
+.overlay__stars {
+  margin: 0.5rem 0;
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1;
+  letter-spacing: 8px;
+  animation: stars-bounce 0.6s ease-out;
+}
+
+@keyframes stars-bounce {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* New bubble intro */
+.overlay__newbubble-name {
+  margin: 0.3rem 0;
+  font-size: clamp(1.3rem, 4vw, 1.8rem);
+  font-weight: 800;
+  color: var(--purple);
 }
 
 /* "New Best Score!" celebration banner */
@@ -207,6 +328,9 @@ canvas {
   .score-chip--lives .score-chip__value {
     font-size: 0.85rem;
     letter-spacing: 1px;
+  }
+  .score-chip--level {
+    min-width: 80px;
   }
 }
 
