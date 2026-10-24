@@ -1,0 +1,573 @@
+/* ==========================================================================
+   Whack-a-Mole — game-specific styles.
+   Shared theme (colours, .btn, .game-bar, .score-chip) lives in ../../style.css
+   ========================================================================== */
+
+body.game-page {
+  background: linear-gradient(180deg, #8fe0ff 0%, #cdf3ff 45%, #c9e6b8 100%);
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Bar buttons group (help + sound)
+   -------------------------------------------------------------------------- */
+.bar-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* --------------------------------------------------------------------------
+   Lives bar - hearts displayed above the stage
+   -------------------------------------------------------------------------- */
+.lives-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.2rem 0;
+}
+
+.heart {
+  font-size: clamp(1.4rem, 4vw, 1.8rem);
+  transition: transform 0.15s ease, opacity 0.3s ease;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));
+}
+
+.heart.is-lost {
+  opacity: 0.25;
+  transform: scale(0.8);
+  filter: grayscale(1);
+}
+
+.heart.is-shaking {
+  animation: heart-shake 0.4s ease;
+}
+
+@keyframes heart-shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-4px) rotate(-10deg); }
+  40% { transform: translateX(4px) rotate(10deg); }
+  60% { transform: translateX(-3px) rotate(-8deg); }
+  80% { transform: translateX(3px) rotate(8deg); }
+}
+
+/* --------------------------------------------------------------------------
+   The stage holds the mole grid
+   -------------------------------------------------------------------------- */
+.stage {
+  position: relative;
+  width: min(100%, 520px);
+  max-width: 520px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 6px solid #fff;
+  box-shadow: var(--shadow-soft);
+  background: linear-gradient(180deg, #7cb85c 0%, #5da33e 100%);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Mole Grid
+   -------------------------------------------------------------------------- */
+.mole-grid {
+  display: grid;
+  gap: clamp(8px, 2vw, 14px);
+  padding: clamp(12px, 3vw, 20px);
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.mole-grid[data-cols="3"] {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.mole-grid[data-cols="4"] {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* --------------------------------------------------------------------------
+   Individual Hole + Mole
+   -------------------------------------------------------------------------- */
+.hole {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hole__dirt {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 45%;
+  background: radial-gradient(ellipse 100% 80% at 50% 100%, #5a3d2b 0%, #3d2517 100%);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  box-shadow: inset 0 -4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+}
+
+.hole__inner {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 25%;
+  background: radial-gradient(ellipse at center, #1a0f0a 0%, #2d1a10 100%);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.mole {
+  position: absolute;
+  bottom: 20%;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 75%;
+  height: 75%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(2.2rem, 8vw, 3.2rem);
+  z-index: 1;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+}
+
+.mole.is-up {
+  transform: translateX(-50%) translateY(0);
+}
+
+.mole.is-bonked {
+  animation: bonk-squash 0.25s ease-out;
+}
+
+@keyframes bonk-squash {
+  0% { transform: translateX(-50%) translateY(0) scale(1, 1); }
+  30% { transform: translateX(-50%) translateY(10%) scale(1.3, 0.6); }
+  60% { transform: translateX(-50%) translateY(0) scale(0.9, 1.1); }
+  100% { transform: translateX(-50%) translateY(100%) scale(1, 1); }
+}
+
+.mole.is-missed {
+  animation: mole-escape 0.3s ease-in forwards;
+}
+
+@keyframes mole-escape {
+  0% { transform: translateX(-50%) translateY(0); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(100%); opacity: 0.5; }
+}
+
+/* Golden mole glow */
+.mole--golden {
+  filter: drop-shadow(0 0 12px #ffd700) drop-shadow(0 0 24px #ffaa00);
+  animation: golden-pulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes golden-pulse {
+  from { filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 16px #ffaa00); }
+  to { filter: drop-shadow(0 0 16px #ffd700) drop-shadow(0 0 32px #ffaa00); }
+}
+
+/* Helmet mole */
+.mole--helmet .mole__helmet {
+  position: absolute;
+  top: -10%;
+  font-size: 0.7em;
+}
+
+/* Freeze mole */
+.mole--freeze {
+  filter: drop-shadow(0 0 10px #00d4ff) drop-shadow(0 0 20px #00aaff);
+}
+
+/* Heart mole */
+.mole--heart {
+  filter: drop-shadow(0 0 8px #ff69b4) drop-shadow(0 0 16px #ff1493);
+}
+
+/* Bunny decoy - clearly different! */
+.mole--bunny {
+  filter: drop-shadow(0 0 6px #ffffff);
+}
+
+/* --------------------------------------------------------------------------
+   Hit effect (hammer + stars)
+   -------------------------------------------------------------------------- */
+.hit-effect {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(2rem, 7vw, 3rem);
+  pointer-events: none;
+  z-index: 10;
+  animation: hit-pop 0.35s ease-out forwards;
+}
+
+@keyframes hit-pop {
+  0% { transform: translate(-50%, -50%) scale(0.5) rotate(-20deg); opacity: 1; }
+  50% { transform: translate(-50%, -50%) scale(1.3) rotate(10deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.8) rotate(0deg); opacity: 0; }
+}
+
+/* Points popup */
+.points-popup {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 12px rgba(255, 215, 0, 0.6);
+  pointer-events: none;
+  z-index: 11;
+  animation: points-float 0.7s ease-out forwards;
+}
+
+.points-popup--golden {
+  color: #ffd700;
+  font-size: clamp(1.4rem, 5vw, 1.9rem);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.8);
+}
+
+.points-popup--combo {
+  color: #ff6b6b;
+}
+
+@keyframes points-float {
+  0% { transform: translateX(-50%) translateY(0) scale(0.8); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-60px) scale(1.1); opacity: 0; }
+}
+
+/* --------------------------------------------------------------------------
+   Combo indicator
+   -------------------------------------------------------------------------- */
+.combo-indicator {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  padding: 0.3rem 0.8rem;
+  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(238, 90, 36, 0.4);
+  z-index: 20;
+  animation: combo-pulse 0.4s ease-in-out infinite alternate;
+}
+
+.combo-indicator.is-hidden {
+  display: none;
+}
+
+@keyframes combo-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+
+/* --------------------------------------------------------------------------
+   Level-up toast
+   -------------------------------------------------------------------------- */
+.level-toast {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0.6rem 1.5rem;
+  font-size: clamp(1.6rem, 5vw, 2.2rem);
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+  z-index: 25;
+  animation: toast-pop 1s ease-out forwards;
+  pointer-events: none;
+}
+
+.level-toast.is-hidden {
+  display: none;
+}
+
+@keyframes toast-pop {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+  80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0; }
+}
+
+/* Frozen state overlay */
+.stage.is-frozen::before {
+  content: "❄️ FROZEN ❄️";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.3rem 1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+  font-weight: 800;
+  color: #00d4ff;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  z-index: 15;
+  animation: freeze-glow 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes freeze-glow {
+  from { box-shadow: 0 0 10px #00d4ff; }
+  to { box-shadow: 0 0 20px #00d4ff, 0 0 30px #00aaff; }
+}
+
+/* --------------------------------------------------------------------------
+   Overlays
+   -------------------------------------------------------------------------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(31, 42, 68, 0.4);
+  backdrop-filter: blur(4px);
+  animation: overlay-in 0.22s ease-out;
+  z-index: 100;
+}
+
+.overlay.is-hidden {
+  display: none;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.overlay__card {
+  width: min(94%, 420px);
+  max-height: 90%;
+  overflow: auto;
+  padding: clamp(1rem, 3vh, 1.5rem) clamp(1rem, 4vw, 1.5rem);
+  text-align: center;
+  background: #fff;
+  border: 6px solid var(--orange);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 14px 0 rgba(31, 42, 68, 0.15), 0 24px 44px rgba(31, 42, 68, 0.3);
+  animation: card-pop 0.32s cubic-bezier(0.18, 1.3, 0.5, 1);
+}
+
+.overlay__card--help {
+  max-width: 480px;
+  text-align: left;
+}
+
+.overlay__card--intro {
+  max-width: 340px;
+}
+
+@keyframes card-pop {
+  from { transform: scale(0.8) translateY(18px); }
+  to { transform: scale(1) translateY(0); }
+}
+
+.overlay__emoji {
+  margin: 0;
+  font-size: clamp(2.2rem, 7vh, 3rem);
+  line-height: 1;
+}
+
+.overlay__title {
+  margin: 0.3rem 0 0.4rem;
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  font-weight: 800;
+}
+
+.overlay__text {
+  margin: 0.3rem 0 0.7rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.05rem);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.overlay__score {
+  margin: 0.2rem 0;
+  font-size: clamp(1.2rem, 4vw, 1.7rem);
+  font-weight: 800;
+}
+
+.overlay__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 0.4rem;
+}
+
+.overlay__btn {
+  min-width: 160px;
+}
+
+.overlay__best {
+  margin: 0.2rem 0 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: clamp(1rem, 3vw, 1.3rem);
+  font-weight: 800;
+  color: #7a4a00;
+  background: linear-gradient(90deg, var(--yellow), #fff0a8, var(--yellow));
+  animation: best-wiggle 0.7s ease-in-out infinite;
+}
+
+.overlay__best.is-hidden {
+  display: none;
+}
+
+@keyframes best-wiggle {
+  0%, 100% { transform: rotate(-2deg) scale(1); }
+  50% { transform: rotate(2deg) scale(1.05); }
+}
+
+/* --------------------------------------------------------------------------
+   Help content
+   -------------------------------------------------------------------------- */
+.help-content {
+  margin: 0.5rem 0;
+}
+
+.help-section {
+  margin-bottom: 0.8rem;
+}
+
+.help-section h3 {
+  margin: 0 0 0.3rem;
+  font-size: clamp(1rem, 3vw, 1.15rem);
+  font-weight: 800;
+}
+
+.help-section p {
+  margin: 0;
+  font-size: clamp(0.85rem, 2.2vw, 0.95rem);
+  color: var(--ink-soft);
+}
+
+.mole-list {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+}
+
+.mole-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  font-size: clamp(0.8rem, 2.1vw, 0.9rem);
+}
+
+.mole-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 1.1rem;
+}
+
+.mole-icon--golden {
+  filter: drop-shadow(0 0 4px #ffd700);
+}
+
+/* --------------------------------------------------------------------------
+   Intro card for new specials
+   -------------------------------------------------------------------------- */
+.intro-badge {
+  margin: 0;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
+  font-weight: 800;
+  color: var(--pink);
+}
+
+.intro-icon {
+  margin: 0.3rem 0;
+  font-size: clamp(3rem, 10vw, 4rem);
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Level chip in the top bar - pulses each time a new level starts
+   -------------------------------------------------------------------------- */
+.score-chip--level {
+  border-color: var(--orange);
+  background: linear-gradient(180deg, #fff5e6, #fff);
+}
+
+.score-chip--level.is-levelling {
+  animation: level-pop 0.7s ease-out;
+}
+
+@keyframes level-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.28) rotate(-3deg); box-shadow: 0 0 0 8px rgba(255, 159, 28, 0.4); }
+  100% { transform: scale(1); }
+}
+
+/* --------------------------------------------------------------------------
+   Hint line
+   -------------------------------------------------------------------------- */
+.hint {
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font-size: clamp(0.85rem, 2.2vw, 1rem);
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive adjustments
+   -------------------------------------------------------------------------- */
+@media (max-width: 480px) {
+  .game-bar__title {
+    order: 3;
+    width: 100%;
+    text-align: center;
+    font-size: 1.1rem;
+  }
+  
+  .stage {
+    max-width: 95vw;
+  }
+}
+
+@media (max-height: 700px) {
+  .hint {
+    display: none;
+  }
+  
+  .lives-bar {
+    margin: 0;
+  }
+  
+  .heart {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-height: 550px) {
+  .stage {
+    max-width: min(100%, 45vh);
+  }
+}

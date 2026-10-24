@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Whack-a-Mole — Badri's Game Zone</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐹</text></svg>"
+    />
+    <!-- Shared theme first, then this game's own styles. -->
+    <link rel="stylesheet" href="../../style.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body class="game-page">
+    <!-- Top bar: back button, title, live scores, help, sound toggle -->
+    <header class="game-bar">
+      <a class="btn btn--purple" href="../../index.html">⬅️ Back to Games</a>
+
+      <h1 class="game-bar__title">🐹 Whack-a-Mole</h1>
+
+      <div class="scoreboard">
+        <div class="score-chip score-chip--level" id="levelChip">
+          <span class="score-chip__label">Level</span>
+          <span class="score-chip__value" id="levelValue">1</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Score</span>
+          <span class="score-chip__value" id="scoreValue">0</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Best</span>
+          <span class="score-chip__value" id="bestValue">0</span>
+        </div>
+      </div>
+
+      <div class="bar-buttons">
+        <button
+          class="btn btn--blue btn--icon"
+          id="helpButton"
+          type="button"
+          title="How to play"
+        >
+          ?
+        </button>
+        <button
+          class="btn btn--orange btn--icon"
+          id="soundButton"
+          type="button"
+          aria-pressed="true"
+          title="Turn sound on or off"
+        >
+          🔊
+        </button>
+      </div>
+    </header>
+
+    <!-- Lives display -->
+    <div class="lives-bar" id="livesBar" aria-label="Lives remaining"></div>
+
+    <!-- The stage holds the mole grid -->
+    <div class="stage" id="stage">
+      <div class="mole-grid" id="moleGrid"></div>
+
+      <!-- Combo indicator -->
+      <div class="combo-indicator is-hidden" id="comboIndicator">x2</div>
+
+      <!-- Level-up toast -->
+      <div class="level-toast is-hidden" id="levelToast">Level 2!</div>
+
+      <!-- START screen -->
+      <div class="overlay" id="startOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">🔨</p>
+          <h2 class="overlay__title">Whack the moles!</h2>
+          <p class="overlay__text">
+            <strong>Tap</strong> or <strong>click</strong> the moles as they pop up!
+            Don't let them escape — miss 5 and it's game over!
+          </p>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="startButton" type="button">Start ▶</button>
+            <button class="btn btn--blue overlay__btn" id="startHelpButton" type="button">How to Play ?</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAUSED screen (shown if you switch tabs mid-game) -->
+      <div class="overlay is-hidden" id="pauseOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">⏸️</p>
+          <h2 class="overlay__title">Paused</h2>
+          <button class="btn btn--green overlay__btn" id="resumeButton" type="button">Keep Playing ▶</button>
+        </div>
+      </div>
+
+      <!-- GAME OVER screen -->
+      <div class="overlay is-hidden" id="gameOverOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji" id="gameOverEmoji">🐹</p>
+          <h2 class="overlay__title">Game Over!</h2>
+          <p class="overlay__best is-hidden" id="newBestBanner">🎉 New Best Score! 🎉</p>
+          <p class="overlay__score">Score: <strong id="finalScore">0</strong></p>
+          <p class="overlay__text">
+            Best: <strong id="finalBest">0</strong> &nbsp;•&nbsp; Reached Level
+            <strong id="finalLevel">1</strong>
+          </p>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="playAgainButton" type="button">
+              Play Again 🔁
+            </button>
+            <a class="btn btn--purple overlay__btn" href="../../index.html">⬅️ Back to Games</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- HOW TO PLAY overlay -->
+      <div class="overlay is-hidden" id="helpOverlay">
+        <div class="overlay__card overlay__card--help">
+          <h2 class="overlay__title">How to Play</h2>
+          <div class="help-content">
+            <div class="help-section">
+              <h3>🔨 Bonk the Moles!</h3>
+              <p>Tap moles as they pop up. Miss 5 and it's game over!</p>
+            </div>
+            <div class="help-section">
+              <h3>⚡ Combos</h3>
+              <p>Quick consecutive bonks build a multiplier: x2, x3, x4, x5! Miss or tap wrong and it resets.</p>
+            </div>
+            <div class="help-section">
+              <h3>✨ Special Moles</h3>
+              <ul class="mole-list">
+                <li><span class="mole-icon">🐹</span> <strong>Normal Mole</strong> — 10 points</li>
+                <li><span class="mole-icon mole-icon--golden">🐹</span> <strong>Golden Mole</strong> — 5x points!</li>
+                <li><span class="mole-icon">🪖</span> <strong>Helmet Mole</strong> — Needs 2 taps</li>
+                <li><span class="mole-icon">💖</span> <strong>Heart Mole</strong> — Gives +1 life</li>
+                <li><span class="mole-icon">❄️</span> <strong>Freeze Mole</strong> — Slows moles for 5s</li>
+                <li><span class="mole-icon">🐰</span> <strong>Bunny (Decoy!)</strong> — DON'T tap! Costs a life</li>
+              </ul>
+            </div>
+          </div>
+          <button class="btn btn--green overlay__btn" id="closeHelpButton" type="button">Got it!</button>
+        </div>
+      </div>
+
+      <!-- NEW SPECIAL intro card -->
+      <div class="overlay is-hidden" id="newSpecialOverlay">
+        <div class="overlay__card overlay__card--intro">
+          <p class="intro-badge">✨ New! ✨</p>
+          <p class="intro-icon" id="newSpecialIcon">🐹</p>
+          <h2 class="overlay__title" id="newSpecialTitle">Golden Mole!</h2>
+          <p class="overlay__text" id="newSpecialDesc">Worth 5x points! Quick, bonk it!</p>
+          <button class="btn btn--green overlay__btn" id="dismissIntroButton" type="button">Let's Go!</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint">
+      Tip: tap fast to build combos! Watch out for the bunny — don't tap it!
+    </p>
+
+    <script src="game.js"></script>
+  </body>
+</html>
