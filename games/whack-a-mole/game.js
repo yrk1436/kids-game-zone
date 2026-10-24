@@ -35,16 +35,16 @@
     MOLES_TO_CLEAR_LEVEL: [8, 10, 12, 14, 16, 18, 20, 22, 24, 26],
 
     LEVEL_SETTINGS: [
-      { cols: 3, rows: 3, visibleMs: 1100, spawnMs: 900,  maxMoles: 1 },
-      { cols: 3, rows: 3, visibleMs: 1000, spawnMs: 800,  maxMoles: 2 },
-      { cols: 3, rows: 3, visibleMs: 900,  spawnMs: 700,  maxMoles: 2 },
-      { cols: 4, rows: 3, visibleMs: 850,  spawnMs: 650,  maxMoles: 2 },
-      { cols: 4, rows: 3, visibleMs: 800,  spawnMs: 600,  maxMoles: 3 },
-      { cols: 4, rows: 3, visibleMs: 750,  spawnMs: 550,  maxMoles: 3 },
-      { cols: 4, rows: 4, visibleMs: 700,  spawnMs: 500,  maxMoles: 3 },
-      { cols: 4, rows: 4, visibleMs: 650,  spawnMs: 450,  maxMoles: 4 },
-      { cols: 4, rows: 4, visibleMs: 600,  spawnMs: 420,  maxMoles: 4 },
-      { cols: 4, rows: 4, visibleMs: 550,  spawnMs: 400,  maxMoles: 5 },
+      { cols: 3, rows: 3, visibleMs: 1400, spawnMs: 1100, maxMoles: 1 },
+      { cols: 3, rows: 3, visibleMs: 1300, spawnMs: 1000, maxMoles: 2 },
+      { cols: 3, rows: 3, visibleMs: 1200, spawnMs: 900,  maxMoles: 2 },
+      { cols: 4, rows: 3, visibleMs: 1100, spawnMs: 850,  maxMoles: 2 },
+      { cols: 4, rows: 3, visibleMs: 1000, spawnMs: 800,  maxMoles: 3 },
+      { cols: 4, rows: 3, visibleMs: 950,  spawnMs: 750,  maxMoles: 3 },
+      { cols: 4, rows: 4, visibleMs: 900,  spawnMs: 700,  maxMoles: 3 },
+      { cols: 4, rows: 4, visibleMs: 850,  spawnMs: 650,  maxMoles: 4 },
+      { cols: 4, rows: 4, visibleMs: 800,  spawnMs: 600,  maxMoles: 4 },
+      { cols: 4, rows: 4, visibleMs: 750,  spawnMs: 550,  maxMoles: 5 },
     ],
 
     SPECIAL_CHANCES: {
