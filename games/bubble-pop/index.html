@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Bubble Pop — Badri's Game Zone</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫧</text></svg>"
+    />
+    <!-- Shared theme first, then this game's own styles. -->
+    <link rel="stylesheet" href="../../style.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body class="game-page">
+    <!-- Top bar: back button, title, live scores, sound toggle ------------- -->
+    <header class="game-bar">
+      <a class="btn btn--purple" href="../../index.html">⬅️ Back to Games</a>
+
+      <h1 class="game-bar__title">🫧 Bubble Pop</h1>
+
+      <div class="scoreboard">
+        <div class="score-chip score-chip--level" id="levelChip">
+          <span class="score-chip__label">Level <span id="levelValue">1</span></span>
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-bar__fill" id="progressFill"></div>
+          </div>
+        </div>
+        <div class="score-chip score-chip--lives" id="livesChip">
+          <span class="score-chip__label">Lives</span>
+          <span class="score-chip__value" id="livesValue">❤️❤️❤️❤️❤️</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Score</span>
+          <span class="score-chip__value" id="scoreValue">0</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Best</span>
+          <span class="score-chip__value" id="bestValue">0</span>
+        </div>
+      </div>
+
+      <button
+        class="btn btn--icon btn--help"
+        id="helpButton"
+        type="button"
+        title="How to play"
+      >
+        ❓
+      </button>
+
+      <button
+        class="btn btn--orange btn--icon"
+        id="soundButton"
+        type="button"
+        aria-pressed="true"
+        title="Turn sound on or off"
+      >
+        🔊
+      </button>
+    </header>
+
+    <!-- The stage keeps a fixed aspect ratio so the canvas never stretches. --->
+    <div class="stage" id="stage">
+      <canvas id="gameCanvas" aria-label="Bubble Pop game" role="img"></canvas>
+
+      <!-- Slow-mo visual overlay -->
+      <div class="slowmo-tint is-hidden" id="slowmoTint"></div>
+
+      <!-- Level-up toast (non-blocking) -->
+      <div class="level-toast is-hidden" id="levelToast">
+        <span class="level-toast__text" id="levelToastText">Level 2!</span>
+      </div>
+
+      <!-- START screen -->
+      <div class="overlay" id="startOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">🫧</p>
+          <h2 class="overlay__title">Pop the Bubbles!</h2>
+          <p class="overlay__text">
+            Tap or click bubbles to pop them before they float away!<br />
+            Pop quickly for combos! Watch for special bubbles!
+          </p>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="startButton" type="button">Start Popping ▶</button>
+            <button class="btn btn--icon btn--help-start" id="helpButtonStart" type="button" title="How to play">❓ How to Play</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAUSED screen (shown if you switch tabs mid-game) -->
+      <div class="overlay is-hidden" id="pauseOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">⏸️</p>
+          <h2 class="overlay__title">Paused</h2>
+          <button class="btn btn--green overlay__btn" id="resumeButton" type="button">Keep Popping ▶</button>
+        </div>
+      </div>
+
+      <!-- HOW TO PLAY panel -->
+      <div class="overlay is-hidden" id="helpOverlay">
+        <div class="overlay__card overlay__card--help">
+          <h2 class="overlay__title">How to Play</h2>
+          
+          <div class="help-section">
+            <h3 class="help-section__title">🎯 Goal</h3>
+            <p class="help-section__text">Pop bubbles before they escape! Complete each level's goal to advance.</p>
+          </div>
+
+          <div class="help-section">
+            <h3 class="help-section__title">🫧 Bubbles</h3>
+            <div class="help-bubbles">
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--normal">🫧</span>
+                <span class="help-bubble__name">Normal</span>
+                <span class="help-bubble__desc">Pop for points!</span>
+              </div>
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--gold">⭐</span>
+                <span class="help-bubble__name">Gold</span>
+                <span class="help-bubble__desc">5x points!</span>
+              </div>
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--heart">❤️</span>
+                <span class="help-bubble__name">Heart</span>
+                <span class="help-bubble__desc">+1 life</span>
+              </div>
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--slowmo">🐌</span>
+                <span class="help-bubble__name">Slow-Mo</span>
+                <span class="help-bubble__desc">Slows time 5s</span>
+              </div>
+              <div class="help-bubble">
+                <span class="help-bubble__icon help-bubble__icon--rainbow">🌈</span>
+                <span class="help-bubble__name">Rainbow</span>
+                <span class="help-bubble__desc">Pops all!</span>
+              </div>
+              <div class="help-bubble help-bubble--danger">
+                <span class="help-bubble__icon help-bubble__icon--bomb">💣</span>
+                <span class="help-bubble__name">Bomb</span>
+                <span class="help-bubble__desc">AVOID! -1 life</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="help-section">
+            <h3 class="help-section__title">⚡ Combos</h3>
+            <p class="help-section__text">Pop bubbles quickly for x2, x3, x4, x5 score multipliers!</p>
+          </div>
+
+          <button class="btn btn--green overlay__btn" id="closeHelpButton" type="button">Got it! ▶</button>
+        </div>
+      </div>
+
+      <!-- NEW SPECIAL BUBBLE intro screen (first time only) -->
+      <div class="overlay is-hidden" id="newBubbleOverlay">
+        <div class="overlay__card overlay__card--newbubble">
+          <p class="overlay__emoji" id="newBubbleEmoji">⭐</p>
+          <h2 class="overlay__title">New Bubble!</h2>
+          <p class="overlay__newbubble-name" id="newBubbleName">Gold Bubble</p>
+          <p class="overlay__text" id="newBubbleDesc">Worth 5x points!</p>
+          <button class="btn btn--green overlay__btn" id="gotItButton" type="button">Got it! ▶</button>
+        </div>
+      </div>
+
+      <!-- GAME OVER screen -->
+      <div class="overlay is-hidden" id="gameOverOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji" id="gameOverEmoji">💥</p>
+          <h2 class="overlay__title">Game Over!</h2>
+          <p class="overlay__best is-hidden" id="newBestBanner">🎉 New Best Score! 🎉</p>
+          <p class="overlay__score">Score: <strong id="finalScore">0</strong></p>
+          <p class="overlay__text">
+            Best: <strong id="finalBest">0</strong><br />
+            Reached Level: <strong id="finalLevel">1</strong> (Best: <strong id="finalBestLevel">1</strong>)
+          </p>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="playAgainButton" type="button">
+              Play Again 🔁
+            </button>
+            <a class="btn btn--purple overlay__btn" href="../../index.html">⬅️ Back to Games</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint">
+      Tip: Pop bubbles quickly for combos! Watch out for special bubbles!
+    </p>
+
+    <script src="game.js"></script>
+  </body>
+</html>
