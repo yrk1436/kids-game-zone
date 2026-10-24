@@ -101,9 +101,10 @@
    * Match the canvas pixel buffer to its on-screen size (crisp on retina),
    * then scale the drawing context so all game code can keep using plain
    * world coordinates (0..WORLD_W, 0..WORLD_H).
+   * Uses canvas's bounding rect (not stage's) to account for stage padding.
    */
   function resizeCanvas() {
-    const rect = stage.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);

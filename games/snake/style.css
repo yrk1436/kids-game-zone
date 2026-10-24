@@ -12,6 +12,9 @@ body.game-page {
    The stage is a fixed 3:2 box so the board keeps its shape on every screen.
    Height is capped so the top bar, the D-pad and the hint all stay visible on
    a laptop or a landscape tablet.
+
+   Padding insets the canvas so the border-radius doesn't clip corner cells.
+   The rounded look stays on the outer wrapper while the canvas is square-cornered.
    -------------------------------------------------------------------------- */
 .stage {
   position: relative;
@@ -28,6 +31,12 @@ body.game-page {
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
+  /* Inset the canvas so corner cells aren't clipped by border-radius.
+     14px > the ~6px diagonal intrusion of a 20px inner radius. */
+  padding: 14px;
+  box-sizing: border-box;
+  /* Background fills the padding area with a matching color */
+  background: #b2ecbf;
 
   --stage-max-h: 50vh;
 }
@@ -36,6 +45,8 @@ canvas {
   display: block;
   width: 100%;
   height: 100%;
+  /* Slight rounding on the canvas to soften edges inside the padded area */
+  border-radius: 8px;
 }
 
 /* --------------------------------------------------------------------------
