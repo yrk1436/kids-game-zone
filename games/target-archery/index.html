@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Target Archery — Badri's Game Zone</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏹</text></svg>"
+    />
+    <link rel="stylesheet" href="../../style.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body class="game-page">
+    <header class="game-bar">
+      <a class="btn btn--purple" href="../../index.html">⬅️ Back to Games</a>
+
+      <h1 class="game-bar__title">🏹 Target Archery</h1>
+
+      <div class="scoreboard">
+        <div class="score-chip score-chip--level" id="levelChip">
+          <span class="score-chip__label">Level</span>
+          <span class="score-chip__value" id="levelValue">1</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Score</span>
+          <span class="score-chip__value" id="scoreValue">0</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Best</span>
+          <span class="score-chip__value" id="bestValue">0</span>
+        </div>
+      </div>
+
+      <div class="bar-buttons">
+        <button
+          class="btn btn--blue btn--icon"
+          id="helpButton"
+          type="button"
+          title="How to play"
+        >
+          ?
+        </button>
+        <button
+          class="btn btn--orange btn--icon"
+          id="soundButton"
+          type="button"
+          aria-pressed="true"
+          title="Turn sound on or off"
+        >
+          🔊
+        </button>
+      </div>
+    </header>
+
+    <div class="arrows-bar" id="arrowsBar" aria-label="Arrows remaining"></div>
+
+    <div class="stage" id="stage">
+      <canvas id="gameCanvas"></canvas>
+
+      <div class="overlay" id="startOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">🎯</p>
+          <h2 class="overlay__title">Target Archery!</h2>
+          <p class="overlay__text">
+            <strong>Drag</strong> to aim your bow, <strong>release</strong> to shoot!
+            Hit the bullseye for big points!
+          </p>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="startButton" type="button">Start ▶</button>
+            <button class="btn btn--blue overlay__btn" id="startHelpButton" type="button">How to Play ?</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay is-hidden" id="pauseOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">⏸️</p>
+          <h2 class="overlay__title">Paused</h2>
+          <button class="btn btn--green overlay__btn" id="resumeButton" type="button">Keep Playing ▶</button>
+        </div>
+      </div>
+
+      <div class="overlay is-hidden" id="levelCompleteOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">🌟</p>
+          <h2 class="overlay__title" id="levelCompleteTitle">Level Complete!</h2>
+          <p class="overlay__score">Score: <strong id="levelScore">0</strong></p>
+          <button class="btn btn--green overlay__btn" id="nextLevelButton" type="button">Next Level ▶</button>
+        </div>
+      </div>
+
+      <div class="overlay is-hidden" id="gameOverOverlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji" id="gameOverEmoji">🏆</p>
+          <h2 class="overlay__title">Game Over!</h2>
+          <p class="overlay__best is-hidden" id="newBestBanner">🎉 New Best Score! 🎉</p>
+          <p class="overlay__score">Score: <strong id="finalScore">0</strong></p>
+          <p class="overlay__text">
+            Best: <strong id="finalBest">0</strong> &nbsp;•&nbsp; Reached Level
+            <strong id="finalLevel">1</strong>
+          </p>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="playAgainButton" type="button">
+              Play Again 🔁
+            </button>
+            <a class="btn btn--purple overlay__btn" href="../../index.html">⬅️ Back to Games</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay is-hidden" id="helpOverlay">
+        <div class="overlay__card overlay__card--help">
+          <h2 class="overlay__title">How to Play</h2>
+          <div class="help-content">
+            <div class="help-section">
+              <h3>🏹 Aim & Shoot!</h3>
+              <p>Drag anywhere on screen to aim your bow. The farther you drag, the more power! Release to shoot.</p>
+            </div>
+            <div class="help-section">
+              <h3>🎯 Hit the Rings!</h3>
+              <ul class="ring-list">
+                <li><span class="ring-dot ring-dot--gold"></span> <strong>Bullseye</strong> — 100 points!</li>
+                <li><span class="ring-dot ring-dot--red"></span> <strong>Red Ring</strong> — 50 points</li>
+                <li><span class="ring-dot ring-dot--blue"></span> <strong>Blue Ring</strong> — 25 points</li>
+                <li><span class="ring-dot ring-dot--white"></span> <strong>White Ring</strong> — 10 points</li>
+              </ul>
+            </div>
+            <div class="help-section">
+              <h3>⬆️ Levels</h3>
+              <p>Targets move faster each level! You get a few arrows per round — make them count!</p>
+            </div>
+          </div>
+          <button class="btn btn--green overlay__btn" id="closeHelpButton" type="button">Got it!</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint">
+      Tip: Drag down and away from the target to power up your shot!
+    </p>
+
+    <script src="game.js"></script>
+  </body>
+</html>

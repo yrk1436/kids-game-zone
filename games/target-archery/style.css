@@ -1,0 +1,310 @@
+/* ==========================================================================
+   Target Archery — game-specific styles.
+   Shared theme (colours, .btn, .game-bar, .score-chip) lives in ../../style.css
+   ========================================================================== */
+
+body.game-page {
+  background: linear-gradient(180deg, #87ceeb 0%, #b8e4f0 45%, #90c97a 100%);
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Bar buttons group (help + sound)
+   -------------------------------------------------------------------------- */
+.bar-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* --------------------------------------------------------------------------
+   Arrows bar - arrows displayed above the stage
+   -------------------------------------------------------------------------- */
+.arrows-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.2rem 0;
+}
+
+.arrow-icon {
+  font-size: clamp(1.4rem, 4vw, 1.8rem);
+  transition: transform 0.15s ease, opacity 0.3s ease;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));
+}
+
+.arrow-icon.is-used {
+  opacity: 0.25;
+  transform: scale(0.8);
+  filter: grayscale(1);
+}
+
+.arrow-icon.is-flying {
+  animation: arrow-fly 0.3s ease-out;
+}
+
+@keyframes arrow-fly {
+  0% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-10px) scale(0.9); }
+  100% { transform: translateY(-20px) scale(0.7); opacity: 0; }
+}
+
+/* --------------------------------------------------------------------------
+   The stage holds the game canvas
+   -------------------------------------------------------------------------- */
+.stage {
+  position: relative;
+  width: min(100%, 600px);
+  max-width: 600px;
+  aspect-ratio: 4 / 5;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 6px solid #fff;
+  box-shadow: var(--shadow-soft);
+  background: linear-gradient(180deg, #6eb5ff 0%, #a8d8ea 50%, #7cb85c 85%, #5da33e 100%);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#gameCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Level chip pulse animation
+   -------------------------------------------------------------------------- */
+.score-chip--level {
+  border-color: var(--pink);
+  background: linear-gradient(180deg, #fff5f8, #fff);
+}
+
+.score-chip--level.is-levelling {
+  animation: level-pop 0.7s ease-out;
+}
+
+@keyframes level-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.28) rotate(-3deg); box-shadow: 0 0 0 8px rgba(255, 94, 168, 0.4); }
+  100% { transform: scale(1); }
+}
+
+/* --------------------------------------------------------------------------
+   Overlays
+   -------------------------------------------------------------------------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(31, 42, 68, 0.4);
+  backdrop-filter: blur(4px);
+  animation: overlay-in 0.22s ease-out;
+  z-index: 100;
+}
+
+.overlay.is-hidden {
+  display: none;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.overlay__card {
+  width: min(94%, 420px);
+  max-height: 90%;
+  overflow: auto;
+  padding: clamp(1rem, 3vh, 1.5rem) clamp(1rem, 4vw, 1.5rem);
+  text-align: center;
+  background: #fff;
+  border: 6px solid var(--pink);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 14px 0 rgba(31, 42, 68, 0.15), 0 24px 44px rgba(31, 42, 68, 0.3);
+  animation: card-pop 0.32s cubic-bezier(0.18, 1.3, 0.5, 1);
+}
+
+.overlay__card--help {
+  max-width: 480px;
+  text-align: left;
+}
+
+@keyframes card-pop {
+  from { transform: scale(0.8) translateY(18px); }
+  to { transform: scale(1) translateY(0); }
+}
+
+.overlay__emoji {
+  margin: 0;
+  font-size: clamp(2.2rem, 7vh, 3rem);
+  line-height: 1;
+}
+
+.overlay__title {
+  margin: 0.3rem 0 0.4rem;
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  font-weight: 800;
+}
+
+.overlay__text {
+  margin: 0.3rem 0 0.7rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.05rem);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.overlay__score {
+  margin: 0.2rem 0;
+  font-size: clamp(1.2rem, 4vw, 1.7rem);
+  font-weight: 800;
+}
+
+.overlay__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 0.4rem;
+}
+
+.overlay__btn {
+  min-width: 160px;
+}
+
+.overlay__best {
+  margin: 0.2rem 0 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: clamp(1rem, 3vw, 1.3rem);
+  font-weight: 800;
+  color: #7a4a00;
+  background: linear-gradient(90deg, var(--yellow), #fff0a8, var(--yellow));
+  animation: best-wiggle 0.7s ease-in-out infinite;
+}
+
+.overlay__best.is-hidden {
+  display: none;
+}
+
+@keyframes best-wiggle {
+  0%, 100% { transform: rotate(-2deg) scale(1); }
+  50% { transform: rotate(2deg) scale(1.05); }
+}
+
+/* --------------------------------------------------------------------------
+   Help content
+   -------------------------------------------------------------------------- */
+.help-content {
+  margin: 0.5rem 0;
+}
+
+.help-section {
+  margin-bottom: 0.8rem;
+}
+
+.help-section h3 {
+  margin: 0 0 0.3rem;
+  font-size: clamp(1rem, 3vw, 1.15rem);
+  font-weight: 800;
+}
+
+.help-section p {
+  margin: 0;
+  font-size: clamp(0.85rem, 2.2vw, 0.95rem);
+  color: var(--ink-soft);
+}
+
+.ring-list {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+}
+
+.ring-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  font-size: clamp(0.8rem, 2.1vw, 0.9rem);
+}
+
+.ring-dot {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #333;
+}
+
+.ring-dot--gold {
+  background: radial-gradient(circle, #ffd700 0%, #ffaa00 100%);
+  box-shadow: 0 0 8px #ffd700;
+}
+
+.ring-dot--red {
+  background: #ff4d4d;
+}
+
+.ring-dot--blue {
+  background: #2d9cff;
+}
+
+.ring-dot--white {
+  background: #fff;
+}
+
+/* --------------------------------------------------------------------------
+   Hint line
+   -------------------------------------------------------------------------- */
+.hint {
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font-size: clamp(0.85rem, 2.2vw, 1rem);
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive adjustments
+   -------------------------------------------------------------------------- */
+@media (max-width: 480px) {
+  .game-bar__title {
+    order: 3;
+    width: 100%;
+    text-align: center;
+    font-size: 1.1rem;
+  }
+  
+  .stage {
+    max-width: 95vw;
+  }
+}
+
+@media (max-height: 700px) {
+  .hint {
+    display: none;
+  }
+  
+  .arrows-bar {
+    margin: 0;
+  }
+  
+  .arrow-icon {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-height: 550px) {
+  .stage {
+    max-width: min(100%, 45vh);
+    aspect-ratio: 1;
+  }
+}
