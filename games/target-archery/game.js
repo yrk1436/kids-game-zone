@@ -98,6 +98,7 @@
   /* ======================================================================
      3. DOM REFS
      ====================================================================== */
+  const stageWrapper = document.getElementById("stageWrapper");
   const stage = document.getElementById("stage");
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
@@ -123,20 +124,64 @@
   const gameOverEmoji = document.getElementById("gameOverEmoji");
 
   /* ======================================================================
-     4. CANVAS SETUP
+     4. VIEWPORT & CANVAS SETUP
+     Uses visualViewport API with fallbacks for Safari compatibility
      ====================================================================== */
   let canvasW = 0;
   let canvasH = 0;
+  const ASPECT_RATIO = 4 / 5;
+
+  function getViewportHeight() {
+    if (window.visualViewport) {
+      return window.visualViewport.height;
+    }
+    return window.innerHeight;
+  }
+
+  function updateVhProperty() {
+    const vh = getViewportHeight() * 0.01;
+    document.documentElement.style.setProperty("--vh", vh + "px");
+  }
+
+  function fitStageToWrapper() {
+    const wrapperW = stageWrapper.clientWidth;
+    const wrapperH = stageWrapper.clientHeight;
+
+    if (wrapperW <= 0 || wrapperH <= 0) return;
+
+    let stageW, stageH;
+
+    const widthFromHeight = wrapperH * ASPECT_RATIO;
+    const heightFromWidth = wrapperW / ASPECT_RATIO;
+
+    if (widthFromHeight <= wrapperW) {
+      stageW = widthFromHeight;
+      stageH = wrapperH;
+    } else {
+      stageW = wrapperW;
+      stageH = heightFromWidth;
+    }
+
+    stageW = Math.floor(stageW);
+    stageH = Math.floor(stageH);
+
+    stage.style.width = stageW + "px";
+    stage.style.height = stageH + "px";
+  }
 
   function resizeCanvas() {
+    updateVhProperty();
+    fitStageToWrapper();
+
     const rect = stage.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     canvasW = rect.width;
     canvasH = rect.height;
+
+    if (canvasW <= 0 || canvasH <= 0) return;
+
     canvas.width = canvasW * dpr;
     canvas.height = canvasH * dpr;
-    canvas.style.width = canvasW + "px";
-    canvas.style.height = canvasH + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     game.bow.x = canvasW * 0.12;
@@ -150,7 +195,20 @@
     }
   }
 
-  window.addEventListener("resize", resizeCanvas);
+  let resizeTimeout = null;
+  function debouncedResize() {
+    if (resizeTimeout) clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(resizeCanvas, 50);
+  }
+
+  window.addEventListener("resize", debouncedResize);
+  window.addEventListener("orientationchange", () => {
+    setTimeout(resizeCanvas, 100);
+  });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", debouncedResize);
+  }
 
   /* ======================================================================
      5. ARROWS BAR
