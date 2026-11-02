@@ -1323,7 +1323,7 @@
   // Expose game state for automated testing (read-only snapshot)
   window.__getArcheryState = function () {
     return {
-      target: { x: game.target.x, y: game.target.y, radius: game.target.radius },
+      target: { x: game.target.x, y: game.target.y, radius: game.target.radius, vx: game.target.vx, vy: game.target.vy },
       bow: { x: game.bow.x, y: game.bow.y },
       canvasW: canvasW,
       canvasH: canvasH,
@@ -1331,6 +1331,125 @@
       arrowsLeft: game.arrowsLeft,
       level: game.level,
       stuckArrows: game.stuckArrows.length,
+      lastHitEffect: game.hitEffects.length > 0 ? game.hitEffects[game.hitEffects.length - 1] : null,
+    };
+  };
+
+  // Test helper: freeze/unfreeze target movement
+  let savedVelocity = null;
+  window.__freezeTarget = function () {
+    savedVelocity = { vx: game.target.vx, vy: game.target.vy };
+    game.target.vx = 0;
+    game.target.vy = 0;
+  };
+  window.__unfreezeTarget = function () {
+    if (savedVelocity) {
+      game.target.vx = savedVelocity.vx;
+      game.target.vy = savedVelocity.vy;
+      savedVelocity = null;
+    }
+  };
+  
+  // Test helper: position target at specific location (for precise testing)
+  window.__setTargetPosition = function (x, y) {
+    game.target.x = x;
+    game.target.y = y;
+  };
+  // Test helper: simulate hitting a specific ring
+  window.__simulateHit = function(ringType) {
+    const t = game.target;
+    const radius = t.radius;
+    
+    // Calculate distance for each ring type
+    let distFactor;
+    switch(ringType) {
+      case 'bullseye': distFactor = 0.15; break;  // Middle of 0-25%
+      case 'red': distFactor = 0.37; break;       // Middle of 25-50%
+      case 'blue': distFactor = 0.62; break;      // Middle of 50-75%
+      case 'white': distFactor = 0.87; break;     // Middle of 75-100%
+      case 'miss': distFactor = 1.2; break;       // Outside target
+      default: return { success: false, error: "Unknown ring type" };
+    }
+    
+    const dist = radius * distFactor;
+    
+    // Place arrow at calculated position
+    const arrowX = t.x + dist;
+    const arrowY = t.y;
+    const dx = arrowX - t.x;
+    const dy = arrowY - t.y;
+    const actualDist = Math.sqrt(dx * dx + dy * dy);
+    
+    // For a miss, just record it
+    if (ringType === 'miss') {
+      if (game.arrowsLeft > 0) {
+        game.arrowsLeft--;
+        renderArrows();
+      }
+      return { 
+        success: true, 
+        ringType: 'miss', 
+        points: 0, 
+        distance: actualDist,
+        score: game.score 
+      };
+    }
+    
+    // Determine scoring
+    let points = 0;
+    let ring = "";
+    
+    if (actualDist <= radius * 0.25) {
+      points = CONFIG.RING_POINTS.bullseye;
+      ring = "bullseye";
+    } else if (actualDist <= radius * 0.5) {
+      points = CONFIG.RING_POINTS.red;
+      ring = "red";
+    } else if (actualDist <= radius * 0.75) {
+      points = CONFIG.RING_POINTS.blue;
+      ring = "blue";
+    } else if (actualDist <= radius) {
+      points = CONFIG.RING_POINTS.white;
+      ring = "white";
+    }
+    
+    // Update score
+    game.score += points;
+    game.levelScore += points;
+    updateScoreDisplay();
+    
+    // Decrement arrows
+    if (game.arrowsLeft > 0) {
+      game.arrowsLeft--;
+      renderArrows();
+    }
+    
+    // Add stuck arrow
+    game.stuckArrows.push({
+      offsetX: dx,
+      offsetY: dy,
+      angle: 0
+    });
+    
+    // Create visual effects
+    createHitEffect(arrowX, arrowY, points, ring);
+    createParticles(arrowX, arrowY, ring);
+    
+    // Play sound
+    if (ring === "bullseye") {
+      playBullseye();
+    } else {
+      playHit();
+    }
+    
+    return {
+      success: true,
+      ringType: ring,
+      points: points,
+      distance: actualDist,
+      score: game.score,
+      arrowsLeft: game.arrowsLeft
     };
   };
 })();
+
