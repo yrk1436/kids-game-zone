@@ -93,6 +93,8 @@
 
     particles: [],
     hitEffects: [],
+    stuckArrows: [],
+    missEffects: [],
   };
 
   /* ======================================================================
@@ -320,6 +322,46 @@
     ctx.fill();
 
     ctx.restore();
+
+    drawStuckArrows();
+  }
+
+  function drawStuckArrows() {
+    const t = game.target;
+    for (const sa of game.stuckArrows) {
+      const ax = t.x + sa.offsetX;
+      const ay = t.y + sa.offsetY;
+      const len = 25;
+
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(sa.angle);
+
+      ctx.beginPath();
+      ctx.moveTo(-len / 2, 0);
+      ctx.lineTo(len / 2, 0);
+      ctx.strokeStyle = "#5D4037";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(len / 2, 0);
+      ctx.lineTo(len / 2 - 8, -4);
+      ctx.lineTo(len / 2 - 8, 4);
+      ctx.closePath();
+      ctx.fillStyle = "#666";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(-len / 2, -3);
+      ctx.lineTo(-len / 2 - 10, -5);
+      ctx.lineTo(-len / 2 - 10, 5);
+      ctx.lineTo(-len / 2, 3);
+      ctx.fillStyle = "#ff5ea8";
+      ctx.fill();
+
+      ctx.restore();
+    }
   }
 
   /* ======================================================================
@@ -551,6 +593,13 @@
     updateScoreDisplay();
 
     game.arrow.flying = false;
+
+    game.stuckArrows.push({
+      offsetX: dx,
+      offsetY: dy,
+      angle: a.angle,
+    });
+
     createHitEffect(a.x, a.y, points, ring);
     createParticles(a.x, a.y, ring);
 
@@ -568,6 +617,10 @@
   }
 
   function arrowMissed() {
+    const missX = Math.min(Math.max(game.arrow.x, 50), canvasW - 50);
+    const missY = Math.min(Math.max(game.arrow.y, 50), canvasH - 50);
+    createMissEffect(missX, missY);
+
     game.arrow.flying = false;
     playMiss();
     setTimeout(() => {
@@ -652,6 +705,15 @@
     });
   }
 
+  function createMissEffect(x, y) {
+    game.missEffects.push({
+      x,
+      y,
+      life: 1,
+      scale: 0,
+    });
+  }
+
   function updateHitEffects() {
     for (let i = game.hitEffects.length - 1; i >= 0; i--) {
       const e = game.hitEffects[i];
@@ -661,6 +723,19 @@
 
       if (e.life <= 0) {
         game.hitEffects.splice(i, 1);
+      }
+    }
+  }
+
+  function updateMissEffects() {
+    for (let i = game.missEffects.length - 1; i >= 0; i--) {
+      const e = game.missEffects[i];
+      e.life -= 0.025;
+      e.scale = Math.min(e.scale + 0.2, 1);
+      e.y += 2;
+
+      if (e.life <= 0) {
+        game.missEffects.splice(i, 1);
       }
     }
   }
@@ -698,6 +773,99 @@
     }
   }
 
+  function drawMissEffects() {
+    for (const e of game.missEffects) {
+      ctx.save();
+      ctx.globalAlpha = e.life;
+      ctx.translate(e.x, e.y);
+      ctx.scale(e.scale, e.scale);
+
+      ctx.font = "bold 24px 'Baloo 2', sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 3;
+      ctx.strokeText("Miss!", 0, 0);
+
+      ctx.fillStyle = "#ff6b6b";
+      ctx.fillText("Miss!", 0, 0);
+
+      ctx.restore();
+    }
+  }
+
+  function drawAimHint() {
+    if (game.aiming.active || game.arrow.flying || game.arrowsLeft <= 0) return;
+
+    const bx = game.bow.x;
+    const by = game.bow.y;
+
+    ctx.save();
+    ctx.globalAlpha = 0.7 + 0.3 * Math.sin(Date.now() / 300);
+
+    ctx.font = "bold 14px 'Baloo 2', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 3;
+
+    const hint = "👆 Drag back to aim!";
+    ctx.strokeText(hint, bx + 60, by - 50);
+    ctx.fillText(hint, bx + 60, by - 50);
+
+    ctx.beginPath();
+    ctx.moveTo(bx + 30, by - 30);
+    ctx.lineTo(bx + 50, by - 45);
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawPowerMeter() {
+    if (!game.aiming.active) return;
+
+    const dx = game.aiming.currentX - game.aiming.startX;
+    const dy = game.aiming.currentY - game.aiming.startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const power = Math.min(dist / 150, 1);
+
+    const meterX = 20;
+    const meterY = canvasH * 0.3;
+    const meterW = 15;
+    const meterH = canvasH * 0.4;
+
+    ctx.save();
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.fillRect(meterX - 2, meterY - 2, meterW + 4, meterH + 4);
+
+    ctx.fillStyle = "#ddd";
+    ctx.fillRect(meterX, meterY, meterW, meterH);
+
+    const gradient = ctx.createLinearGradient(0, meterY + meterH, 0, meterY);
+    gradient.addColorStop(0, "#4ade80");
+    gradient.addColorStop(0.5, "#fbbf24");
+    gradient.addColorStop(1, "#ef4444");
+    ctx.fillStyle = gradient;
+
+    const filledH = meterH * power;
+    ctx.fillRect(meterX, meterY + meterH - filledH, meterW, filledH);
+
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(meterX, meterY, meterW, meterH);
+
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillStyle = "#333";
+    ctx.textAlign = "center";
+    ctx.fillText("PWR", meterX + meterW / 2, meterY - 5);
+
+    ctx.restore();
+  }
+
   /* ======================================================================
      10. GAME LOOP
      ====================================================================== */
@@ -713,6 +881,7 @@
       updateArrow();
       updateParticles();
       updateHitEffects();
+      updateMissEffects();
     }
 
     render();
@@ -729,6 +898,9 @@
     drawArrow();
     drawParticles();
     drawHitEffects();
+    drawMissEffects();
+    drawAimHint();
+    drawPowerMeter();
   }
 
   function drawGrass() {
@@ -749,13 +921,26 @@
 
   /* ======================================================================
      11. INPUT HANDLING
+     Fixed for iOS Safari: use changedTouches for touchend
      ====================================================================== */
   function getPointerPos(e) {
     const rect = canvas.getBoundingClientRect();
-    const touch = e.touches ? e.touches[0] : e;
+    let clientX, clientY;
+
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
     return {
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top,
+      x: clientX - rect.left,
+      y: clientY - rect.top,
     };
   }
 
@@ -763,6 +948,8 @@
     if (phase !== "running" || game.arrow.flying || game.arrowsLeft <= 0) return;
 
     e.preventDefault();
+    e.stopPropagation();
+
     const pos = getPointerPos(e);
     game.aiming.active = true;
     game.aiming.startX = pos.x;
@@ -775,6 +962,8 @@
     if (!game.aiming.active) return;
 
     e.preventDefault();
+    e.stopPropagation();
+
     const pos = getPointerPos(e);
     game.aiming.currentX = pos.x;
     game.aiming.currentY = pos.y;
@@ -784,8 +973,14 @@
     if (!game.aiming.active) return;
 
     e.preventDefault();
+    e.stopPropagation();
+
     game.aiming.active = false;
     shootArrow();
+  }
+
+  function onPointerCancel(e) {
+    game.aiming.active = false;
   }
 
   canvas.addEventListener("mousedown", onPointerDown);
@@ -796,7 +991,9 @@
   canvas.addEventListener("touchstart", onPointerDown, { passive: false });
   canvas.addEventListener("touchmove", onPointerMove, { passive: false });
   canvas.addEventListener("touchend", onPointerUp, { passive: false });
-  canvas.addEventListener("touchcancel", onPointerUp, { passive: false });
+  canvas.addEventListener("touchcancel", onPointerCancel, { passive: false });
+
+  canvas.style.touchAction = "none";
 
   /* ======================================================================
      12. GAME LIFECYCLE
@@ -809,6 +1006,8 @@
     game.arrow.flying = false;
     game.particles = [];
     game.hitEffects = [];
+    game.stuckArrows = [];
+    game.missEffects = [];
 
     resizeCanvas();
     initTarget();
@@ -830,6 +1029,8 @@
     game.arrow.flying = false;
     game.particles = [];
     game.hitEffects = [];
+    game.stuckArrows = [];
+    game.missEffects = [];
 
     initTarget();
     renderArrows();
