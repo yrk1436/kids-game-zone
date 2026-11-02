@@ -7,6 +7,8 @@
    - Arrow follows a parabolic arc
    - Colorful ringed targets that move (faster each level)
    - Points by ring (bullseye = 100, red = 50, blue = 25, white = 10)
+   - Friendly animal bonus targets (bunny, fox, bird, deer)
+   - Movable bow position along the bottom
    - Limited arrows per round
    - Multiple levels with increasing difficulty
    - Score + best score saved in localStorage
@@ -33,6 +35,10 @@
       white: 10,
     },
 
+    ANIMAL_BONUS: 75,
+    ANIMAL_SPAWN_CHANCE: 0.012,
+    MAX_ANIMALS: 2,
+
     TARGET_BASE_SPEED: 0.5,
     TARGET_SPEED_INCREMENT: 0.3,
 
@@ -42,13 +48,59 @@
 
     TARGET_SIZE_RATIO: 0.22,
 
+    BOW_MIN_X_RATIO: 0.08,
+    BOW_MAX_X_RATIO: 0.35,
+    BOW_MOVE_SPEED: 5,
+
     STORAGE_BEST_SCORE: "badri.archery.best",
     STORAGE_BEST_LEVEL: "badri.archery.bestlevel",
     STORAGE_SOUND: "badri.archery.sound",
   };
 
   /* ======================================================================
-     2. STATE
+     2. ANIMAL DEFINITIONS - Friendly cartoon animals
+     ====================================================================== */
+  const ANIMAL_TYPES = [
+    {
+      name: "bunny",
+      emoji: "🐰",
+      color: "#f8c8dc",
+      speed: 1.2,
+      size: 35,
+      moveType: "hop",
+      sayHi: "Bye bye! 👋",
+    },
+    {
+      name: "fox",
+      emoji: "🦊",
+      color: "#ff9f43",
+      speed: 1.8,
+      size: 38,
+      moveType: "walk",
+      sayHi: "See ya! 🧡",
+    },
+    {
+      name: "bird",
+      emoji: "🐦",
+      color: "#74b9ff",
+      speed: 2.2,
+      size: 30,
+      moveType: "fly",
+      sayHi: "Tweet! 💙",
+    },
+    {
+      name: "deer",
+      emoji: "🦌",
+      color: "#c9a86c",
+      speed: 1.5,
+      size: 42,
+      moveType: "walk",
+      sayHi: "Thanks! 🌿",
+    },
+  ];
+
+  /* ======================================================================
+     3. STATE
      ====================================================================== */
   let phase = "ready";
 
@@ -72,6 +124,8 @@
     bow: {
       x: 0,
       y: 0,
+      targetX: 0,
+      isDragging: false,
     },
 
     arrow: {
@@ -91,6 +145,9 @@
       currentY: 0,
     },
 
+    animals: [],
+    animalEffects: [],
+
     particles: [],
     hitEffects: [],
     stuckArrows: [],
@@ -98,7 +155,7 @@
   };
 
   /* ======================================================================
-     3. DOM REFS
+     4. DOM REFS
      ====================================================================== */
   const stageWrapper = document.getElementById("stageWrapper");
   const stage = document.getElementById("stage");
@@ -126,8 +183,7 @@
   const gameOverEmoji = document.getElementById("gameOverEmoji");
 
   /* ======================================================================
-     4. VIEWPORT & CANVAS SETUP
-     Uses visualViewport API with fallbacks for Safari compatibility
+     5. VIEWPORT & CANVAS SETUP
      ====================================================================== */
   let canvasW = 0;
   let canvasH = 0;
@@ -186,7 +242,13 @@
     canvas.height = canvasH * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    game.bow.x = canvasW * 0.12;
+    const bowMinX = canvasW * CONFIG.BOW_MIN_X_RATIO;
+    const bowMaxX = canvasW * CONFIG.BOW_MAX_X_RATIO;
+    
+    if (game.bow.x === 0) {
+      game.bow.x = bowMinX + (bowMaxX - bowMinX) * 0.3;
+      game.bow.targetX = game.bow.x;
+    }
     game.bow.y = canvasH * 0.85;
 
     game.target.radius = canvasW * CONFIG.TARGET_SIZE_RATIO;
@@ -213,7 +275,7 @@
   }
 
   /* ======================================================================
-     5. ARROWS BAR
+     6. ARROWS BAR
      ====================================================================== */
   function renderArrows() {
     arrowsBar.innerHTML = "";
@@ -226,11 +288,10 @@
   }
 
   /* ======================================================================
-     6. TARGET
+     7. TARGET
      ====================================================================== */
   function initTarget() {
     const r = game.target.radius;
-    const padding = r + 20;
 
     game.target.x = canvasW * 0.7;
     game.target.y = canvasH * 0.3;
@@ -265,22 +326,10 @@
     const minY = r + padding + 40;
     const maxY = canvasH * 0.6;
 
-    if (t.x < minX) {
-      t.x = minX;
-      t.vx = Math.abs(t.vx);
-    }
-    if (t.x > maxX) {
-      t.x = maxX;
-      t.vx = -Math.abs(t.vx);
-    }
-    if (t.y < minY) {
-      t.y = minY;
-      t.vy = Math.abs(t.vy);
-    }
-    if (t.y > maxY) {
-      t.y = maxY;
-      t.vy = -Math.abs(t.vy);
-    }
+    if (t.x < minX) { t.x = minX; t.vx = Math.abs(t.vx); }
+    if (t.x > maxX) { t.x = maxX; t.vx = -Math.abs(t.vx); }
+    if (t.y < minY) { t.y = minY; t.vy = Math.abs(t.vy); }
+    if (t.y > maxY) { t.y = maxY; t.vy = -Math.abs(t.vy); }
   }
 
   function drawTarget() {
@@ -365,8 +414,219 @@
   }
 
   /* ======================================================================
-     7. BOW
+     8. ANIMALS - Friendly bonus targets
      ====================================================================== */
+  function spawnAnimal() {
+    if (game.animals.length >= CONFIG.MAX_ANIMALS) return;
+    if (Math.random() > CONFIG.ANIMAL_SPAWN_CHANCE) return;
+
+    const type = ANIMAL_TYPES[Math.floor(Math.random() * ANIMAL_TYPES.length)];
+    const fromLeft = Math.random() > 0.5;
+    const baseY = canvasH * (0.3 + Math.random() * 0.35);
+
+    game.animals.push({
+      type: type,
+      x: fromLeft ? -type.size : canvasW + type.size,
+      y: baseY,
+      baseY: baseY,
+      vx: (fromLeft ? 1 : -1) * type.speed,
+      phase: Math.random() * Math.PI * 2,
+      tagged: false,
+      waving: false,
+      waveTimer: 0,
+      opacity: 1,
+    });
+  }
+
+  function updateAnimals() {
+    for (let i = game.animals.length - 1; i >= 0; i--) {
+      const a = game.animals[i];
+
+      if (a.waving) {
+        a.waveTimer++;
+        a.opacity = Math.max(0, 1 - a.waveTimer / 60);
+        a.y -= 0.5;
+        if (a.waveTimer > 60) {
+          game.animals.splice(i, 1);
+        }
+        continue;
+      }
+
+      a.x += a.vx;
+      a.phase += 0.15;
+
+      if (a.type.moveType === "hop") {
+        a.y = a.baseY - Math.abs(Math.sin(a.phase)) * 20;
+      } else if (a.type.moveType === "fly") {
+        a.y = a.baseY + Math.sin(a.phase) * 15;
+      }
+
+      if ((a.vx > 0 && a.x > canvasW + a.type.size * 2) ||
+          (a.vx < 0 && a.x < -a.type.size * 2)) {
+        game.animals.splice(i, 1);
+      }
+    }
+  }
+
+  function drawAnimals() {
+    for (const a of game.animals) {
+      ctx.save();
+      ctx.globalAlpha = a.opacity;
+      ctx.translate(a.x, a.y);
+
+      if (a.vx < 0) {
+        ctx.scale(-1, 1);
+      }
+
+      const size = a.type.size;
+
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size, size * 0.8, 0, 0, Math.PI * 2);
+      ctx.fillStyle = a.type.color;
+      ctx.fill();
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.font = `bold ${size}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(a.type.emoji, 0, 0);
+
+      if (a.waving) {
+        ctx.font = "bold 14px 'Baloo 2', sans-serif";
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 3;
+        const text = a.type.sayHi;
+        if (a.vx < 0) ctx.scale(-1, 1);
+        ctx.strokeText(text, 0, -size - 15);
+        ctx.fillText(text, 0, -size - 15);
+      }
+
+      ctx.restore();
+    }
+  }
+
+  function checkAnimalHit() {
+    if (!game.arrow.flying) return false;
+
+    const a = game.arrow;
+
+    for (let i = 0; i < game.animals.length; i++) {
+      const animal = game.animals[i];
+      if (animal.tagged || animal.waving) continue;
+
+      const dx = a.x - animal.x;
+      const dy = a.y - animal.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < animal.type.size) {
+        animal.tagged = true;
+        animal.waving = true;
+        animal.waveTimer = 0;
+        animal.vx = 0;
+
+        game.score += CONFIG.ANIMAL_BONUS;
+        game.levelScore += CONFIG.ANIMAL_BONUS;
+        updateScoreDisplay();
+
+        game.arrow.flying = false;
+
+        createAnimalEffect(animal.x, animal.y, animal.type);
+        playAnimalHit();
+
+        setTimeout(() => checkRoundEnd(), 500);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function createAnimalEffect(x, y, type) {
+    game.animalEffects.push({
+      x: x,
+      y: y,
+      emoji: type.emoji,
+      text: "+" + CONFIG.ANIMAL_BONUS + " Bonus!",
+      life: 1,
+      scale: 0,
+    });
+
+    for (let i = 0; i < 20; i++) {
+      const angle = (Math.PI * 2 * i) / 20 + Math.random() * 0.5;
+      const speed = 2 + Math.random() * 3;
+      game.particles.push({
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 4 + Math.random() * 4,
+        color: type.color,
+        life: 1,
+        decay: 0.02 + Math.random() * 0.02,
+      });
+    }
+  }
+
+  function updateAnimalEffects() {
+    for (let i = game.animalEffects.length - 1; i >= 0; i--) {
+      const e = game.animalEffects[i];
+      e.life -= 0.015;
+      e.scale = Math.min(e.scale + 0.1, 1);
+      e.y -= 1.5;
+
+      if (e.life <= 0) {
+        game.animalEffects.splice(i, 1);
+      }
+    }
+  }
+
+  function drawAnimalEffects() {
+    for (const e of game.animalEffects) {
+      ctx.save();
+      ctx.globalAlpha = e.life;
+      ctx.translate(e.x, e.y);
+      ctx.scale(e.scale, e.scale);
+
+      ctx.font = "bold 36px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(e.emoji, 0, -25);
+
+      ctx.font = "bold 22px 'Baloo 2', sans-serif";
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 4;
+      ctx.strokeText(e.text, 0, 15);
+      ctx.fillStyle = "#ff69b4";
+      ctx.fillText(e.text, 0, 15);
+
+      ctx.restore();
+    }
+  }
+
+  /* ======================================================================
+     9. BOW - Movable along bottom
+     ====================================================================== */
+  function updateBow() {
+    const bowMinX = canvasW * CONFIG.BOW_MIN_X_RATIO;
+    const bowMaxX = canvasW * CONFIG.BOW_MAX_X_RATIO;
+
+    game.bow.targetX = Math.max(bowMinX, Math.min(bowMaxX, game.bow.targetX));
+
+    const dx = game.bow.targetX - game.bow.x;
+    if (Math.abs(dx) > 1) {
+      game.bow.x += dx * 0.15;
+    } else {
+      game.bow.x = game.bow.targetX;
+    }
+
+    if (!game.arrow.flying) {
+      game.arrow.x = game.bow.x;
+      game.arrow.y = game.bow.y;
+    }
+  }
+
   function drawBow() {
     const bx = game.bow.x;
     const by = game.bow.y;
@@ -410,6 +670,47 @@
     if (game.aiming.active && !game.arrow.flying) {
       drawAimingArrow(angle, pullBack);
     }
+
+    drawBowMoveButtons();
+  }
+
+  function drawBowMoveButtons() {
+    if (game.aiming.active || game.arrow.flying) return;
+
+    const bx = game.bow.x;
+    const by = game.bow.y;
+    const btnSize = 28;
+    const btnY = by + 35;
+
+    ctx.save();
+    ctx.globalAlpha = 0.8;
+
+    ctx.beginPath();
+    ctx.arc(bx - 40, btnY, btnSize / 2, 0, Math.PI * 2);
+    ctx.fillStyle = "#4a9030";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 16px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("◀", bx - 40, btnY);
+
+    ctx.beginPath();
+    ctx.arc(bx + 40, btnY, btnSize / 2, 0, Math.PI * 2);
+    ctx.fillStyle = "#4a9030";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.fillText("▶", bx + 40, btnY);
+
+    ctx.restore();
   }
 
   function drawAimingArrow(angle, pullBack) {
@@ -481,7 +782,7 @@
   }
 
   /* ======================================================================
-     8. FLYING ARROW
+     10. FLYING ARROW
      ====================================================================== */
   function updateArrow() {
     if (!game.arrow.flying) return;
@@ -491,6 +792,10 @@
     a.x += a.vx;
     a.y += a.vy;
     a.angle = Math.atan2(a.vy, a.vx);
+
+    if (checkAnimalHit()) {
+      return;
+    }
 
     if (checkTargetHit()) {
       return;
@@ -609,9 +914,7 @@
       playHit();
     }
 
-    setTimeout(() => {
-      checkRoundEnd();
-    }, 500);
+    setTimeout(() => checkRoundEnd(), 500);
 
     return true;
   }
@@ -623,9 +926,7 @@
 
     game.arrow.flying = false;
     playMiss();
-    setTimeout(() => {
-      checkRoundEnd();
-    }, 300);
+    setTimeout(() => checkRoundEnd(), 300);
   }
 
   function checkRoundEnd() {
@@ -639,7 +940,7 @@
   }
 
   /* ======================================================================
-     9. PARTICLES & EFFECTS
+     11. PARTICLES & EFFECTS
      ====================================================================== */
   function createParticles(x, y, ring) {
     const colors = {
@@ -804,22 +1105,19 @@
     ctx.save();
     ctx.globalAlpha = 0.7 + 0.3 * Math.sin(Date.now() / 300);
 
-    ctx.font = "bold 14px 'Baloo 2', sans-serif";
+    ctx.font = "bold 12px 'Baloo 2', sans-serif";
     ctx.textAlign = "center";
     ctx.fillStyle = "#fff";
     ctx.strokeStyle = "#333";
     ctx.lineWidth = 3;
 
-    const hint = "👆 Drag back to aim!";
-    ctx.strokeText(hint, bx + 60, by - 50);
-    ctx.fillText(hint, bx + 60, by - 50);
+    const hint = "👆 Drag to aim!";
+    ctx.strokeText(hint, bx + 50, by - 55);
+    ctx.fillText(hint, bx + 50, by - 55);
 
-    ctx.beginPath();
-    ctx.moveTo(bx + 30, by - 30);
-    ctx.lineTo(bx + 50, by - 45);
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    const moveHint = "◀ ▶ Move bow";
+    ctx.strokeText(moveHint, bx, by + 55);
+    ctx.fillText(moveHint, bx, by + 55);
 
     ctx.restore();
   }
@@ -867,7 +1165,7 @@
   }
 
   /* ======================================================================
-     10. GAME LOOP
+     12. GAME LOOP
      ====================================================================== */
   let lastTime = 0;
   let animationId = null;
@@ -877,11 +1175,15 @@
     lastTime = timestamp;
 
     if (phase === "running") {
+      updateBow();
       updateTarget();
+      updateAnimals();
+      spawnAnimal();
       updateArrow();
       updateParticles();
       updateHitEffects();
       updateMissEffects();
+      updateAnimalEffects();
     }
 
     render();
@@ -893,12 +1195,14 @@
     ctx.clearRect(0, 0, canvasW, canvasH);
 
     drawGrass();
+    drawAnimals();
     drawTarget();
     drawBow();
     drawArrow();
     drawParticles();
     drawHitEffects();
     drawMissEffects();
+    drawAnimalEffects();
     drawAimHint();
     drawPowerMeter();
   }
@@ -920,8 +1224,7 @@
   }
 
   /* ======================================================================
-     11. INPUT HANDLING
-     Fixed for iOS Safari: use changedTouches for touchend
+     13. INPUT HANDLING
      ====================================================================== */
   function getPointerPos(e) {
     const rect = canvas.getBoundingClientRect();
@@ -944,13 +1247,57 @@
     };
   }
 
+  function isOnMoveButton(pos) {
+    if (game.aiming.active || game.arrow.flying) return null;
+
+    const bx = game.bow.x;
+    const by = game.bow.y;
+    const btnY = by + 35;
+    const btnSize = 28;
+
+    const leftDist = Math.sqrt(Math.pow(pos.x - (bx - 40), 2) + Math.pow(pos.y - btnY, 2));
+    const rightDist = Math.sqrt(Math.pow(pos.x - (bx + 40), 2) + Math.pow(pos.y - btnY, 2));
+
+    if (leftDist < btnSize) return "left";
+    if (rightDist < btnSize) return "right";
+    return null;
+  }
+
+  function isOnBowHandle(pos) {
+    const bx = game.bow.x;
+    const by = game.bow.y;
+    const handleRadius = 50;
+
+    const dist = Math.sqrt(Math.pow(pos.x - bx, 2) + Math.pow(pos.y - by, 2));
+    return dist < handleRadius && pos.y > by - 20;
+  }
+
   function onPointerDown(e) {
-    if (phase !== "running" || game.arrow.flying || game.arrowsLeft <= 0) return;
+    if (phase !== "running" || game.arrowsLeft <= 0) return;
 
     e.preventDefault();
     e.stopPropagation();
 
     const pos = getPointerPos(e);
+
+    const btn = isOnMoveButton(pos);
+    if (btn) {
+      const step = canvasW * 0.08;
+      if (btn === "left") {
+        game.bow.targetX -= step;
+      } else {
+        game.bow.targetX += step;
+      }
+      return;
+    }
+
+    if (!game.arrow.flying && isOnBowHandle(pos)) {
+      game.bow.isDragging = true;
+      return;
+    }
+
+    if (game.arrow.flying) return;
+
     game.aiming.active = true;
     game.aiming.startX = pos.x;
     game.aiming.startY = pos.y;
@@ -959,17 +1306,30 @@
   }
 
   function onPointerMove(e) {
+    const pos = getPointerPos(e);
+
+    if (game.bow.isDragging) {
+      e.preventDefault();
+      e.stopPropagation();
+      game.bow.targetX = pos.x;
+      return;
+    }
+
     if (!game.aiming.active) return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    const pos = getPointerPos(e);
     game.aiming.currentX = pos.x;
     game.aiming.currentY = pos.y;
   }
 
   function onPointerUp(e) {
+    if (game.bow.isDragging) {
+      game.bow.isDragging = false;
+      return;
+    }
+
     if (!game.aiming.active) return;
 
     e.preventDefault();
@@ -981,6 +1341,7 @@
 
   function onPointerCancel(e) {
     game.aiming.active = false;
+    game.bow.isDragging = false;
   }
 
   canvas.addEventListener("mousedown", onPointerDown);
@@ -995,8 +1356,21 @@
 
   canvas.style.touchAction = "none";
 
+  document.addEventListener("keydown", (e) => {
+    if (phase !== "running") return;
+
+    const step = canvasW * 0.05;
+    if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+      game.bow.targetX -= step;
+      e.preventDefault();
+    } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+      game.bow.targetX += step;
+      e.preventDefault();
+    }
+  });
+
   /* ======================================================================
-     12. GAME LIFECYCLE
+     14. GAME LIFECYCLE
      ====================================================================== */
   function startGame() {
     game.score = 0;
@@ -1008,6 +1382,13 @@
     game.hitEffects = [];
     game.stuckArrows = [];
     game.missEffects = [];
+    game.animals = [];
+    game.animalEffects = [];
+
+    const bowMinX = canvasW * CONFIG.BOW_MIN_X_RATIO;
+    const bowMaxX = canvasW * CONFIG.BOW_MAX_X_RATIO;
+    game.bow.x = bowMinX + (bowMaxX - bowMinX) * 0.3;
+    game.bow.targetX = game.bow.x;
 
     resizeCanvas();
     initTarget();
@@ -1031,6 +1412,8 @@
     game.hitEffects = [];
     game.stuckArrows = [];
     game.missEffects = [];
+    game.animals = [];
+    game.animalEffects = [];
 
     initTarget();
     renderArrows();
@@ -1079,9 +1462,7 @@
       playFanfare();
     }
 
-    setTimeout(() => {
-      showOverlay(gameOverOverlay);
-    }, 300);
+    setTimeout(() => showOverlay(gameOverOverlay), 300);
   }
 
   function pauseGame() {
@@ -1097,7 +1478,7 @@
   }
 
   /* ======================================================================
-     13. UI HELPERS
+     15. UI HELPERS
      ====================================================================== */
   function showOverlay(el) {
     el.classList.remove("is-hidden");
@@ -1135,7 +1516,7 @@
   }
 
   /* ======================================================================
-     14. EVENT LISTENERS
+     16. EVENT LISTENERS
      ====================================================================== */
   document.getElementById("startButton").addEventListener("click", () => {
     resumeAudio();
@@ -1182,7 +1563,7 @@
   });
 
   /* ======================================================================
-     15. LOCAL STORAGE
+     17. LOCAL STORAGE
      ====================================================================== */
   function loadBest() {
     try {
@@ -1215,7 +1596,7 @@
   }
 
   /* ======================================================================
-     16. SOUND - WebAudio API (no external files)
+     18. SOUND - WebAudio API (no external files)
      ====================================================================== */
   const soundButton = document.getElementById("soundButton");
   let soundOn = loadSoundPref();
@@ -1309,8 +1690,15 @@
     });
   }
 
+  function playAnimalHit() {
+    tone(600, 0.1, "sine", 0.08);
+    setTimeout(() => tone(800, 0.1, "sine", 0.08), 80);
+    setTimeout(() => tone(1000, 0.15, "sine", 0.07), 160);
+    setTimeout(() => tone(1200, 0.1, "sine", 0.06), 240);
+  }
+
   /* ======================================================================
-     17. BOOT
+     19. BOOT
      ====================================================================== */
   resizeCanvas();
   renderArrows();
@@ -1320,28 +1708,32 @@
 
   animationId = requestAnimationFrame(gameLoop);
 
-  // Expose game state for automated testing (read-only snapshot)
+  /* ======================================================================
+     20. TEST HELPERS (for automated QA)
+     ====================================================================== */
   window.__getArcheryState = function () {
     return {
       target: { x: game.target.x, y: game.target.y, radius: game.target.radius, vx: game.target.vx, vy: game.target.vy },
-      bow: { x: game.bow.x, y: game.bow.y },
+      bow: { x: game.bow.x, y: game.bow.y, targetX: game.bow.targetX },
       canvasW: canvasW,
       canvasH: canvasH,
       score: game.score,
       arrowsLeft: game.arrowsLeft,
       level: game.level,
       stuckArrows: game.stuckArrows.length,
+      animals: game.animals.map(a => ({ x: a.x, y: a.y, type: a.type.name, tagged: a.tagged })),
       lastHitEffect: game.hitEffects.length > 0 ? game.hitEffects[game.hitEffects.length - 1] : null,
+      lastAnimalEffect: game.animalEffects.length > 0 ? game.animalEffects[game.animalEffects.length - 1] : null,
     };
   };
 
-  // Test helper: freeze/unfreeze target movement
   let savedVelocity = null;
   window.__freezeTarget = function () {
     savedVelocity = { vx: game.target.vx, vy: game.target.vy };
     game.target.vx = 0;
     game.target.vy = 0;
   };
+  
   window.__unfreezeTarget = function () {
     if (savedVelocity) {
       game.target.vx = savedVelocity.vx;
@@ -1349,53 +1741,84 @@
       savedVelocity = null;
     }
   };
-  
-  // Test helper: position target at specific location (for precise testing)
+
   window.__setTargetPosition = function (x, y) {
     game.target.x = x;
     game.target.y = y;
   };
-  // Test helper: simulate hitting a specific ring
+
+  window.__moveBow = function (position) {
+    const bowMinX = canvasW * CONFIG.BOW_MIN_X_RATIO;
+    const bowMaxX = canvasW * CONFIG.BOW_MAX_X_RATIO;
+    
+    if (position === "left") {
+      game.bow.targetX = bowMinX;
+    } else if (position === "right") {
+      game.bow.targetX = bowMaxX;
+    } else if (position === "center") {
+      game.bow.targetX = (bowMinX + bowMaxX) / 2;
+    } else if (typeof position === "number") {
+      game.bow.targetX = position;
+    }
+    
+    for (let i = 0; i < 20; i++) {
+      updateBow();
+    }
+    
+    return { x: game.bow.x, targetX: game.bow.targetX };
+  };
+
+  window.__spawnAnimal = function (type) {
+    const animalType = ANIMAL_TYPES.find(t => t.name === type) || ANIMAL_TYPES[0];
+    const fromLeft = Math.random() > 0.5;
+    const baseY = canvasH * 0.45;
+    
+    const animal = {
+      type: animalType,
+      x: canvasW * 0.5,
+      y: baseY,
+      baseY: baseY,
+      vx: 0,
+      phase: 0,
+      tagged: false,
+      waving: false,
+      waveTimer: 0,
+      opacity: 1,
+    };
+    
+    game.animals.push(animal);
+    return { x: animal.x, y: animal.y, type: animal.type.name };
+  };
+
   window.__simulateHit = function(ringType) {
     const t = game.target;
     const radius = t.radius;
     
-    // Calculate distance for each ring type
     let distFactor;
     switch(ringType) {
-      case 'bullseye': distFactor = 0.15; break;  // Middle of 0-25%
-      case 'red': distFactor = 0.37; break;       // Middle of 25-50%
-      case 'blue': distFactor = 0.62; break;      // Middle of 50-75%
-      case 'white': distFactor = 0.87; break;     // Middle of 75-100%
-      case 'miss': distFactor = 1.2; break;       // Outside target
+      case 'bullseye': distFactor = 0.15; break;
+      case 'red': distFactor = 0.37; break;
+      case 'blue': distFactor = 0.62; break;
+      case 'white': distFactor = 0.87; break;
+      case 'miss': distFactor = 1.2; break;
       default: return { success: false, error: "Unknown ring type" };
     }
     
     const dist = radius * distFactor;
-    
-    // Place arrow at calculated position
     const arrowX = t.x + dist;
     const arrowY = t.y;
     const dx = arrowX - t.x;
     const dy = arrowY - t.y;
     const actualDist = Math.sqrt(dx * dx + dy * dy);
     
-    // For a miss, just record it
     if (ringType === 'miss') {
       if (game.arrowsLeft > 0) {
         game.arrowsLeft--;
         renderArrows();
       }
-      return { 
-        success: true, 
-        ringType: 'miss', 
-        points: 0, 
-        distance: actualDist,
-        score: game.score 
-      };
+      return { success: true, ringType: 'miss', points: 0, distance: actualDist, score: game.score };
     }
     
-    // Determine scoring
     let points = 0;
     let ring = "";
     
@@ -1413,43 +1836,63 @@
       ring = "white";
     }
     
-    // Update score
     game.score += points;
     game.levelScore += points;
     updateScoreDisplay();
     
-    // Decrement arrows
     if (game.arrowsLeft > 0) {
       game.arrowsLeft--;
       renderArrows();
     }
     
-    // Add stuck arrow
-    game.stuckArrows.push({
-      offsetX: dx,
-      offsetY: dy,
-      angle: 0
-    });
-    
-    // Create visual effects
+    game.stuckArrows.push({ offsetX: dx, offsetY: dy, angle: 0 });
     createHitEffect(arrowX, arrowY, points, ring);
     createParticles(arrowX, arrowY, ring);
     
-    // Play sound
     if (ring === "bullseye") {
       playBullseye();
     } else {
       playHit();
     }
     
-    return {
-      success: true,
-      ringType: ring,
-      points: points,
-      distance: actualDist,
+    setTimeout(() => checkRoundEnd(), 100);
+    
+    return { success: true, ringType: ring, points: points, distance: actualDist, score: game.score, arrowsLeft: game.arrowsLeft };
+  };
+
+  window.__hitAnimal = function() {
+    if (game.animals.length === 0) {
+      window.__spawnAnimal("bunny");
+    }
+    
+    const animal = game.animals.find(a => !a.tagged && !a.waving);
+    if (!animal) return { success: false, error: "No animal to hit" };
+    
+    animal.tagged = true;
+    animal.waving = true;
+    animal.waveTimer = 0;
+    animal.vx = 0;
+    
+    game.score += CONFIG.ANIMAL_BONUS;
+    game.levelScore += CONFIG.ANIMAL_BONUS;
+    updateScoreDisplay();
+    
+    if (game.arrowsLeft > 0) {
+      game.arrowsLeft--;
+      renderArrows();
+    }
+    
+    createAnimalEffect(animal.x, animal.y, animal.type);
+    playAnimalHit();
+    
+    setTimeout(() => checkRoundEnd(), 100);
+    
+    return { 
+      success: true, 
+      animalType: animal.type.name, 
+      bonus: CONFIG.ANIMAL_BONUS, 
       score: game.score,
       arrowsLeft: game.arrowsLeft
     };
   };
 })();
-
