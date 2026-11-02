@@ -6,6 +6,15 @@
 body.game-page {
   background: linear-gradient(180deg, #87ceeb 0%, #b8e4f0 45%, #90c97a 100%);
   overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+/* Make header and arrows bar fixed height, not shrinkable */
+body.game-page .game-bar {
+  flex: 0 0 auto;
 }
 
 /* --------------------------------------------------------------------------
@@ -20,6 +29,7 @@ body.game-page {
    Arrows bar - arrows displayed above the stage
    -------------------------------------------------------------------------- */
 .arrows-bar {
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
   gap: 0.4rem;
@@ -49,12 +59,28 @@ body.game-page {
 }
 
 /* --------------------------------------------------------------------------
+   Stage container - uses flex to fill remaining space
+   -------------------------------------------------------------------------- */
+.stage-wrapper {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0 clamp(0.5rem, 2vw, 1rem);
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
    The stage holds the game canvas
    -------------------------------------------------------------------------- */
 .stage {
   position: relative;
-  width: min(100%, 600px);
-  max-width: 600px;
+  width: 100%;
+  height: 100%;
+  max-width: min(600px, calc((100vh - 140px) * 0.8), calc((100dvh - 140px) * 0.8));
+  max-height: calc(100vh - 140px);
+  max-height: calc(100dvh - 140px);
   aspect-ratio: 4 / 5;
   margin: 0 auto;
   border-radius: var(--radius-lg);
@@ -121,9 +147,10 @@ body.game-page {
 
 .overlay__card {
   width: min(94%, 420px);
-  max-height: 90%;
+  max-height: 85%;
+  max-height: 85dvh;
   overflow: auto;
-  padding: clamp(1rem, 3vh, 1.5rem) clamp(1rem, 4vw, 1.5rem);
+  padding: clamp(0.8rem, 2vh, 1.5rem) clamp(1rem, 4vw, 1.5rem);
   text-align: center;
   background: #fff;
   border: 6px solid var(--pink);
@@ -265,7 +292,9 @@ body.game-page {
    Hint line
    -------------------------------------------------------------------------- */
 .hint {
-  margin: 0.5rem 0 0;
+  flex: 0 0 auto;
+  margin: 0.3rem 0;
+  padding: 0 0.5rem;
   text-align: center;
   font-size: clamp(0.85rem, 2.2vw, 1rem);
   font-weight: 700;
@@ -284,7 +313,7 @@ body.game-page {
   }
   
   .stage {
-    max-width: 95vw;
+    max-width: min(95vw, calc((100dvh - 160px) * 0.8));
   }
 }
 
@@ -300,11 +329,82 @@ body.game-page {
   .arrow-icon {
     font-size: 1.2rem;
   }
+  
+  .stage {
+    max-height: calc(100dvh - 100px);
+    max-width: min(600px, calc((100dvh - 100px) * 0.8));
+  }
 }
 
-@media (max-height: 550px) {
+/* Landscape mode on phones */
+@media (max-height: 500px) {
+  .game-bar {
+    padding: 0.3rem 0.5rem;
+    gap: 0.4rem;
+  }
+  
+  .game-bar__title {
+    font-size: 1rem;
+  }
+  
+  .btn--icon {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.3rem 0.6rem;
+    font-size: 1.2rem;
+  }
+  
+  .score-chip {
+    min-width: 70px;
+    padding: 0.2rem 0.5rem;
+  }
+  
+  .arrows-bar {
+    display: none;
+  }
+  
   .stage {
-    max-width: min(100%, 45vh);
-    aspect-ratio: 1;
+    max-height: calc(100dvh - 70px);
+    max-width: min(100%, calc((100dvh - 70px) * 0.8));
+  }
+  
+  .overlay__card {
+    max-height: calc(100dvh - 20px);
+    padding: 0.6rem 1rem;
+  }
+  
+  .overlay__emoji {
+    font-size: 1.8rem;
+    margin-bottom: 0.2rem;
+  }
+  
+  .overlay__title {
+    font-size: 1.2rem;
+    margin: 0.2rem 0;
+  }
+  
+  .overlay__text {
+    font-size: 0.85rem;
+    margin: 0.2rem 0 0.4rem;
+  }
+  
+  .overlay__buttons {
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+  }
+  
+  .overlay__btn {
+    min-width: 120px;
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Very short landscape */
+@media (max-height: 400px) {
+  .stage {
+    max-height: calc(100dvh - 60px);
+    max-width: min(100%, calc((100dvh - 60px) * 0.8));
   }
 }
