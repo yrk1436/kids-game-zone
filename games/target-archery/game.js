@@ -1319,4 +1319,18 @@
   showOverlay(startOverlay);
 
   animationId = requestAnimationFrame(gameLoop);
+
+  // Expose game state for automated testing (read-only snapshot)
+  window.__getArcheryState = function () {
+    return {
+      target: { x: game.target.x, y: game.target.y, radius: game.target.radius },
+      bow: { x: game.bow.x, y: game.bow.y },
+      canvasW: canvasW,
+      canvasH: canvasH,
+      score: game.score,
+      arrowsLeft: game.arrowsLeft,
+      level: game.level,
+      stuckArrows: game.stuckArrows.length,
+    };
+  };
 })();
