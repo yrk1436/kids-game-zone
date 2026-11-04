@@ -27,7 +27,7 @@ no modules, fetches or external dependencies.
 | 🐹 Whack-a-Mole | Coming soon |
 | 🧩 Maze Escape | Coming soon |
 | 🏹 Target Archery | Coming soon |
-| 🃏 Memory Match | Coming soon |
+| 🃏 Memory Match | Playable |
 
 ```
 kids-game-hub/
@@ -144,6 +144,31 @@ catches needed come from `catchesToClearLevel()` (`round(5 + 2.5 × (level − 1
 and the per-level fall speed / drop gap from `fallSpeedForLevel()` and
 `spawnGapForLevel()` — all at the top of `games/fruit-catcher/game.js`, alongside
 the `CONFIG` block (basket size/speed, lives, scoring, star chance).
+
+## Memory Match
+
+Flip two cards at a time and find every matching animal or fruit pair.
+
+| Action | How |
+| --- | --- |
+| Flip a card | Tap or click it |
+
+- Matching pairs stay face-up with a sparkle. Misses flip back after a moment.
+- The **Moves** chip counts each two-card try. The **timer** starts on the first flip.
+- Best (fewest moves) is saved in `localStorage` (`badri.memory-match.best`) per level, with a 🎉 banner when you beat it.
+
+### Levels
+
+Pick one on the start screen:
+
+| Level | Grid | Pairs |
+| --- | --- | --- |
+| Easy | 3×4 | 6 |
+| Medium | 4×4 | 8 |
+| Hard | 4×5 | 10 |
+
+Difficulty lives in the `CONFIG.LEVELS` object at the top of
+`games/memory-match/game.js`.
 
 ## Adding the next game
 

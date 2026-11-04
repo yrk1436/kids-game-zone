@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Memory Match — Badri's Game Zone</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>"
+    />
+    <!-- Shared theme first, then this game's own styles. -->
+    <link rel="stylesheet" href="../../style.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body class="game-page">
+    <!-- Top bar: back button, title, live scores, sound toggle -->
+    <header class="game-bar">
+      <a class="btn btn--purple back-btn" href="../../index.html">
+        <span aria-hidden="true">⬅️</span>
+        <span class="back-btn__text">Back to Games</span>
+      </a>
+
+      <h1 class="game-bar__title">🃏 Memory Match</h1>
+
+      <div class="scoreboard">
+        <div class="score-chip">
+          <span class="score-chip__label">Moves</span>
+          <span class="score-chip__value" id="movesValue" data-testid="moves-value">0</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Time</span>
+          <span class="score-chip__value" id="timeValue" data-testid="time-value">0:00</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Pairs</span>
+          <span class="score-chip__value" id="pairsValue" data-testid="pairs-value">0/0</span>
+        </div>
+        <div class="score-chip">
+          <span class="score-chip__label">Best</span>
+          <span class="score-chip__value" id="bestValue" data-testid="best-value">—</span>
+        </div>
+      </div>
+
+      <div class="bar-buttons">
+        <button
+          class="btn btn--icon btn--help"
+          id="helpButton"
+          type="button"
+          title="How to play"
+        >
+          ?
+        </button>
+        <button
+          class="btn btn--orange btn--icon"
+          id="soundButton"
+          type="button"
+          aria-pressed="true"
+          title="Turn sound on or off"
+        >
+          🔊
+        </button>
+      </div>
+    </header>
+
+    <div class="stage" id="stage" data-testid="stage" data-phase="ready">
+      <div
+        class="card-grid"
+        id="cardGrid"
+        data-testid="card-grid"
+        role="grid"
+        aria-label="Memory cards"
+      ></div>
+
+      <div class="confetti" id="confetti" aria-hidden="true"></div>
+
+      <!-- START screen -->
+      <div class="overlay" id="startOverlay" data-testid="start-overlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">🃏</p>
+          <h2 class="overlay__title">Memory Match!</h2>
+          <p class="overlay__text">
+            Flip two cards. Find the matching animals and fruit!
+          </p>
+          <p class="overlay__pick">Pick a level</p>
+          <div class="difficulty" role="group" aria-label="Difficulty">
+            <button
+              class="btn btn--green difficulty__btn"
+              id="easyButton"
+              type="button"
+              data-testid="difficulty-easy"
+              data-difficulty="easy"
+            >
+              Easy<br /><span>3×4 · 6 pairs</span>
+            </button>
+            <button
+              class="btn btn--orange difficulty__btn"
+              id="mediumButton"
+              type="button"
+              data-testid="difficulty-medium"
+              data-difficulty="medium"
+            >
+              Medium<br /><span>4×4 · 8 pairs</span>
+            </button>
+            <button
+              class="btn btn--pink difficulty__btn"
+              id="hardButton"
+              type="button"
+              data-testid="difficulty-hard"
+              data-difficulty="hard"
+            >
+              Hard<br /><span>4×5 · 10 pairs</span>
+            </button>
+          </div>
+          <button class="btn overlay__btn btn--help-start" id="startHelpButton" type="button">
+            How to Play ?
+          </button>
+        </div>
+      </div>
+
+      <!-- PAUSED screen -->
+      <div class="overlay is-hidden" id="pauseOverlay" data-testid="pause-overlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">⏸️</p>
+          <h2 class="overlay__title">Paused</h2>
+          <button class="btn btn--green overlay__btn" id="resumeButton" type="button">
+            Keep Playing ▶
+          </button>
+        </div>
+      </div>
+
+      <!-- WIN screen -->
+      <div class="overlay is-hidden" id="winOverlay" data-testid="win-overlay">
+        <div class="overlay__card overlay__card--win">
+          <p class="overlay__emoji" id="winEmoji">🎉</p>
+          <h2 class="overlay__title">You did it!</h2>
+          <p class="overlay__best is-hidden" id="newBestBanner" data-testid="new-best">
+            🎉 New Best! 🎉
+          </p>
+          <p class="overlay__score">
+            Moves: <strong id="finalMoves" data-testid="final-moves">0</strong>
+          </p>
+          <p class="overlay__text">
+            Time: <strong id="finalTime" data-testid="final-time">0:00</strong>
+            &nbsp;•&nbsp; Best:
+            <strong id="finalBest" data-testid="final-best">—</strong>
+          </p>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="playAgainButton" type="button">
+              Play Again 🔁
+            </button>
+            <button class="btn btn--orange overlay__btn" id="changeLevelButton" type="button">
+              Change Level
+            </button>
+            <a class="btn btn--purple overlay__btn" href="../../index.html">⬅️ Back to Games</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- HOW TO PLAY overlay -->
+      <div class="overlay is-hidden" id="helpOverlay" data-testid="help-overlay">
+        <div class="overlay__card overlay__card--help">
+          <h2 class="overlay__title">How to Play</h2>
+          <div class="help-content">
+            <div class="help-section">
+              <h3>🃏 Flip two cards</h3>
+              <p>Tap a card to peek. Tap a second card. Are they a pair?</p>
+            </div>
+            <div class="help-section">
+              <h3>✨ Match them up</h3>
+              <p>Matching pairs stay face-up. Wrong pairs flip back — try to remember!</p>
+            </div>
+            <div class="help-section">
+              <h3>🏆 Beat your best</h3>
+              <p>Every two-card try is one move. Finish with fewer moves to set a new best.</p>
+            </div>
+            <div class="help-section">
+              <h3>📏 Levels</h3>
+              <p>Easy is 3×4, Medium is 4×4, Hard is 4×5. Bigger boards, more pairs!</p>
+            </div>
+          </div>
+          <button class="btn btn--green overlay__btn" id="closeHelpButton" type="button">
+            Got it!
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint">Tip: remember where each animal and fruit lives. Big taps, no rushing!</p>
+
+    <script src="game.js"></script>
+  </body>
+</html>
