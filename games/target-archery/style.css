@@ -1,0 +1,508 @@
+/* ==========================================================================
+   Target Archery — game-specific styles.
+   Shared theme (colours, .btn, .game-bar, .score-chip) lives in ../../style.css
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Root layout: flex column that fills the viewport exactly
+   JS will set --vh custom property for Safari compatibility
+   -------------------------------------------------------------------------- */
+body.game-page {
+  background: linear-gradient(180deg, #87ceeb 0%, #b8e4f0 45%, #90c97a 100%);
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* --------------------------------------------------------------------------
+   Compact header for mobile - everything on one row
+   -------------------------------------------------------------------------- */
+body.game-page .game-bar {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.5rem;
+  gap: 0.4rem;
+}
+
+/* Hide the title by default on mobile - show inline with arrows instead */
+body.game-page .game-bar__title {
+  display: none;
+}
+
+/* Compact score chips */
+body.game-page .score-chip {
+  min-width: 54px;
+  padding: 0.2rem 0.4rem;
+}
+
+body.game-page .score-chip__label {
+  font-size: 0.6rem;
+}
+
+body.game-page .score-chip__value {
+  font-size: 1rem;
+}
+
+/* Compact buttons */
+body.game-page .btn {
+  min-height: 40px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+body.game-page .btn--icon {
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0.3rem;
+  font-size: 1.1rem;
+}
+
+/* --------------------------------------------------------------------------
+   Bar buttons group (help + sound)
+   -------------------------------------------------------------------------- */
+.bar-buttons {
+  display: flex;
+  gap: 0.3rem;
+}
+
+/* --------------------------------------------------------------------------
+   Combined title + arrows row - single compact line
+   -------------------------------------------------------------------------- */
+.title-arrows-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0.5rem;
+}
+
+.title-arrows-row .game-title-small {
+  font-size: 0.9rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.arrows-inline {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.arrow-icon {
+  font-size: 1rem;
+  transition: transform 0.15s ease, opacity 0.3s ease;
+}
+
+.arrow-icon.is-used {
+  opacity: 0.25;
+  transform: scale(0.8);
+  filter: grayscale(1);
+}
+
+/* --------------------------------------------------------------------------
+   Stage container - uses flex to fill ALL remaining space
+   -------------------------------------------------------------------------- */
+.stage-wrapper {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0.25rem;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   The stage holds the game canvas - sized by JS to fit wrapper
+   -------------------------------------------------------------------------- */
+.stage {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 4px solid #fff;
+  box-shadow: var(--shadow-soft);
+  background: linear-gradient(180deg, #6eb5ff 0%, #a8d8ea 50%, #7cb85c 85%, #5da33e 100%);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   Level chip pulse animation
+   -------------------------------------------------------------------------- */
+.score-chip--level {
+  border-color: var(--pink);
+  background: linear-gradient(180deg, #fff5f8, #fff);
+}
+
+.score-chip--level.is-levelling {
+  animation: level-pop 0.7s ease-out;
+}
+
+@keyframes level-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.2) rotate(-3deg); box-shadow: 0 0 0 6px rgba(255, 94, 168, 0.4); }
+  100% { transform: scale(1); }
+}
+
+/* --------------------------------------------------------------------------
+   Overlays
+   -------------------------------------------------------------------------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: rgba(31, 42, 68, 0.4);
+  backdrop-filter: blur(4px);
+  animation: overlay-in 0.22s ease-out;
+  z-index: 100;
+}
+
+.overlay.is-hidden {
+  display: none;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.overlay__card {
+  width: min(94%, 360px);
+  max-height: 95%;
+  overflow: auto;
+  padding: 0.6rem 0.8rem;
+  text-align: center;
+  background: #fff;
+  border: 4px solid var(--pink);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 0 rgba(31, 42, 68, 0.15), 0 20px 40px rgba(31, 42, 68, 0.3);
+  animation: card-pop 0.32s cubic-bezier(0.18, 1.3, 0.5, 1);
+}
+
+.overlay__card--help {
+  max-width: 400px;
+  text-align: left;
+}
+
+@keyframes card-pop {
+  from { transform: scale(0.8) translateY(18px); }
+  to { transform: scale(1) translateY(0); }
+}
+
+.overlay__emoji {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.overlay__title {
+  margin: 0.2rem 0 0.3rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.overlay__text {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.overlay__score {
+  margin: 0.15rem 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.overlay__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  margin-top: 0.3rem;
+}
+
+.overlay__btn {
+  min-width: 120px;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+.overlay__best {
+  margin: 0.15rem 0 0.3rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #7a4a00;
+  background: linear-gradient(90deg, var(--yellow), #fff0a8, var(--yellow));
+  animation: best-wiggle 0.7s ease-in-out infinite;
+}
+
+.overlay__best.is-hidden {
+  display: none;
+}
+
+@keyframes best-wiggle {
+  0%, 100% { transform: rotate(-2deg) scale(1); }
+  50% { transform: rotate(2deg) scale(1.05); }
+}
+
+/* --------------------------------------------------------------------------
+   Help content
+   -------------------------------------------------------------------------- */
+.help-content {
+  margin: 0.3rem 0;
+}
+
+.help-section {
+  margin-bottom: 0.5rem;
+}
+
+.help-section h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.help-section p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.ring-list {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+}
+
+.ring-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0;
+  font-size: 0.75rem;
+}
+
+.ring-dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #333;
+}
+
+.ring-dot--gold {
+  background: radial-gradient(circle, #ffd700 0%, #ffaa00 100%);
+  box-shadow: 0 0 6px #ffd700;
+}
+
+.ring-dot--red {
+  background: #ff4d4d;
+}
+
+.ring-dot--blue {
+  background: #2d9cff;
+}
+
+.ring-dot--white {
+  background: #fff;
+}
+
+/* --------------------------------------------------------------------------
+   Hint line - hidden on mobile to save space
+   -------------------------------------------------------------------------- */
+.hint {
+  display: none;
+}
+
+/* ==========================================================================
+   DESKTOP / LARGER SCREENS
+   ========================================================================== */
+@media (min-width: 600px) and (min-height: 600px) {
+  body.game-page {
+    padding: clamp(0.6rem, 2vw, 1.1rem);
+  }
+  
+  body.game-page .game-bar {
+    padding: 0.5rem 1rem;
+    gap: 0.6rem;
+  }
+  
+  body.game-page .game-bar__title {
+    display: block;
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+  }
+  
+  body.game-page .score-chip {
+    min-width: 80px;
+    padding: 0.3rem 0.7rem;
+  }
+  
+  body.game-page .score-chip__label {
+    font-size: 0.7rem;
+  }
+  
+  body.game-page .score-chip__value {
+    font-size: 1.3rem;
+  }
+  
+  body.game-page .btn {
+    min-height: 52px;
+    padding: 0.6rem 1.4rem;
+    font-size: 1rem;
+  }
+  
+  body.game-page .btn--icon {
+    min-height: 52px;
+    min-width: 52px;
+    padding: 0.5rem;
+    font-size: 1.3rem;
+  }
+  
+  .title-arrows-row {
+    padding: 0.3rem 0.5rem;
+    gap: 0.8rem;
+  }
+  
+  .title-arrows-row .game-title-small {
+    display: none;
+  }
+  
+  .arrow-icon {
+    font-size: 1.4rem;
+  }
+  
+  .stage-wrapper {
+    padding: 0.5rem 1rem;
+  }
+  
+  .stage {
+    border-width: 6px;
+  }
+  
+  .hint {
+    display: block;
+    flex: 0 0 auto;
+    margin: 0.4rem 0;
+    padding: 0 0.5rem;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+  }
+  
+  .overlay__card {
+    width: min(94%, 420px);
+    padding: 1rem 1.2rem;
+    border-width: 6px;
+  }
+  
+  .overlay__emoji {
+    font-size: 2.5rem;
+  }
+  
+  .overlay__title {
+    font-size: 1.6rem;
+  }
+  
+  .overlay__text {
+    font-size: 0.95rem;
+  }
+  
+  .overlay__btn {
+    min-width: 150px;
+    min-height: 52px;
+    font-size: 1rem;
+  }
+}
+
+/* ==========================================================================
+   LANDSCAPE MODE - very short height
+   ========================================================================== */
+@media (max-height: 450px) {
+  body.game-page .game-bar {
+    padding: 0.2rem 0.4rem;
+    gap: 0.3rem;
+  }
+  
+  body.game-page .score-chip {
+    min-width: 48px;
+    padding: 0.15rem 0.3rem;
+  }
+  
+  body.game-page .score-chip__label {
+    font-size: 0.5rem;
+  }
+  
+  body.game-page .score-chip__value {
+    font-size: 0.85rem;
+  }
+  
+  body.game-page .btn {
+    min-height: 34px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  
+  body.game-page .btn--icon {
+    min-height: 34px;
+    min-width: 34px;
+    font-size: 0.9rem;
+  }
+  
+  .title-arrows-row {
+    display: none;
+  }
+  
+  .stage-wrapper {
+    padding: 0.15rem;
+  }
+  
+  .stage {
+    border-width: 3px;
+  }
+  
+  .overlay__card {
+    padding: 0.4rem 0.6rem;
+    border-width: 3px;
+  }
+  
+  .overlay__emoji {
+    font-size: 1.5rem;
+  }
+  
+  .overlay__title {
+    font-size: 1rem;
+    margin: 0.1rem 0;
+  }
+  
+  .overlay__text {
+    font-size: 0.75rem;
+    margin: 0.1rem 0 0.3rem;
+  }
+  
+  .overlay__btn {
+    min-width: 100px;
+    min-height: 36px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}

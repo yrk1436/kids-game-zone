@@ -1,0 +1,1898 @@
+/* ==========================================================================
+   TARGET ARCHERY  🏹
+   Drag to aim, release to shoot arrows at moving targets!
+
+   Features:
+   - Drag anywhere to aim, release to shoot
+   - Arrow follows a parabolic arc
+   - Colorful ringed targets that move (faster each level)
+   - Points by ring (bullseye = 100, red = 50, blue = 25, white = 10)
+   - Friendly animal bonus targets (bunny, fox, bird, deer)
+   - Movable bow position along the bottom
+   - Limited arrows per round
+   - Multiple levels with increasing difficulty
+   - Score + best score saved in localStorage
+   - WebAudio sound effects with mute toggle
+   - Touch-first design for kids
+
+   Built to match the kids-game-hub style.
+   ========================================================================== */
+
+(function () {
+  "use strict";
+
+  /* ======================================================================
+     1. CONFIG — tweak these to adjust difficulty and pacing
+     ====================================================================== */
+  const CONFIG = {
+    ARROWS_PER_LEVEL: 5,
+    TOTAL_LEVELS: 5,
+
+    RING_POINTS: {
+      bullseye: 100,
+      red: 50,
+      blue: 25,
+      white: 10,
+    },
+
+    ANIMAL_BONUS: 75,
+    ANIMAL_SPAWN_CHANCE: 0.012,
+    MAX_ANIMALS: 2,
+
+    TARGET_BASE_SPEED: 0.5,
+    TARGET_SPEED_INCREMENT: 0.3,
+
+    ARROW_GRAVITY: 0.15,
+    ARROW_POWER_SCALE: 0.12,
+    MAX_POWER: 25,
+
+    TARGET_SIZE_RATIO: 0.22,
+
+    BOW_MIN_X_RATIO: 0.08,
+    BOW_MAX_X_RATIO: 0.35,
+    BOW_MOVE_SPEED: 5,
+
+    STORAGE_BEST_SCORE: "badri.archery.best",
+    STORAGE_BEST_LEVEL: "badri.archery.bestlevel",
+    STORAGE_SOUND: "badri.archery.sound",
+  };
+
+  /* ======================================================================
+     2. ANIMAL DEFINITIONS - Friendly cartoon animals
+     ====================================================================== */
+  const ANIMAL_TYPES = [
+    {
+      name: "bunny",
+      emoji: "🐰",
+      color: "#f8c8dc",
+      speed: 1.2,
+      size: 35,
+      moveType: "hop",
+      sayHi: "Bye bye! 👋",
+    },
+    {
+      name: "fox",
+      emoji: "🦊",
+      color: "#ff9f43",
+      speed: 1.8,
+      size: 38,
+      moveType: "walk",
+      sayHi: "See ya! 🧡",
+    },
+    {
+      name: "bird",
+      emoji: "🐦",
+      color: "#74b9ff",
+      speed: 2.2,
+      size: 30,
+      moveType: "fly",
+      sayHi: "Tweet! 💙",
+    },
+    {
+      name: "deer",
+      emoji: "🦌",
+      color: "#c9a86c",
+      speed: 1.5,
+      size: 42,
+      moveType: "walk",
+      sayHi: "Thanks! 🌿",
+    },
+  ];
+
+  /* ======================================================================
+     3. STATE
+     ====================================================================== */
+  let phase = "ready";
+
+  const game = {
+    score: 0,
+    best: loadBest(),
+    bestLevel: loadBestLevel(),
+    level: 1,
+    arrowsLeft: CONFIG.ARROWS_PER_LEVEL,
+    levelScore: 0,
+
+    target: {
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      radius: 60,
+      bounceMode: "horizontal",
+    },
+
+    bow: {
+      x: 0,
+      y: 0,
+      targetX: 0,
+      isDragging: false,
+    },
+
+    arrow: {
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      flying: false,
+      angle: 0,
+    },
+
+    aiming: {
+      active: false,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+    },
+
+    animals: [],
+    animalEffects: [],
+
+    particles: [],
+    hitEffects: [],
+    stuckArrows: [],
+    missEffects: [],
+  };
+
+  /* ======================================================================
+     4. DOM REFS
+     ====================================================================== */
+  const stageWrapper = document.getElementById("stageWrapper");
+  const stage = document.getElementById("stage");
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+  const arrowsBar = document.getElementById("arrowsBar");
+
+  const startOverlay = document.getElementById("startOverlay");
+  const pauseOverlay = document.getElementById("pauseOverlay");
+  const levelCompleteOverlay = document.getElementById("levelCompleteOverlay");
+  const gameOverOverlay = document.getElementById("gameOverOverlay");
+  const helpOverlay = document.getElementById("helpOverlay");
+
+  const scoreValueEl = document.getElementById("scoreValue");
+  const bestValueEl = document.getElementById("bestValue");
+  const levelValueEl = document.getElementById("levelValue");
+  const levelChip = document.getElementById("levelChip");
+
+  const levelScoreEl = document.getElementById("levelScore");
+  const levelCompleteTitle = document.getElementById("levelCompleteTitle");
+  const finalScoreEl = document.getElementById("finalScore");
+  const finalBestEl = document.getElementById("finalBest");
+  const finalLevelEl = document.getElementById("finalLevel");
+  const newBestBanner = document.getElementById("newBestBanner");
+  const gameOverEmoji = document.getElementById("gameOverEmoji");
+
+  /* ======================================================================
+     5. VIEWPORT & CANVAS SETUP
+     ====================================================================== */
+  let canvasW = 0;
+  let canvasH = 0;
+  const ASPECT_RATIO = 4 / 5;
+
+  function getViewportHeight() {
+    if (window.visualViewport) {
+      return window.visualViewport.height;
+    }
+    return window.innerHeight;
+  }
+
+  function updateVhProperty() {
+    const vh = getViewportHeight() * 0.01;
+    document.documentElement.style.setProperty("--vh", vh + "px");
+  }
+
+  function fitStageToWrapper() {
+    const wrapperW = stageWrapper.clientWidth;
+    const wrapperH = stageWrapper.clientHeight;
+
+    if (wrapperW <= 0 || wrapperH <= 0) return;
+
+    let stageW, stageH;
+
+    const widthFromHeight = wrapperH * ASPECT_RATIO;
+    const heightFromWidth = wrapperW / ASPECT_RATIO;
+
+    if (widthFromHeight <= wrapperW) {
+      stageW = widthFromHeight;
+      stageH = wrapperH;
+    } else {
+      stageW = wrapperW;
+      stageH = heightFromWidth;
+    }
+
+    stageW = Math.floor(stageW);
+    stageH = Math.floor(stageH);
+
+    stage.style.width = stageW + "px";
+    stage.style.height = stageH + "px";
+  }
+
+  function resizeCanvas() {
+    updateVhProperty();
+    fitStageToWrapper();
+
+    const rect = stage.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvasW = rect.width;
+    canvasH = rect.height;
+
+    if (canvasW <= 0 || canvasH <= 0) return;
+
+    canvas.width = canvasW * dpr;
+    canvas.height = canvasH * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const bowMinX = canvasW * CONFIG.BOW_MIN_X_RATIO;
+    const bowMaxX = canvasW * CONFIG.BOW_MAX_X_RATIO;
+    
+    if (game.bow.x === 0) {
+      game.bow.x = bowMinX + (bowMaxX - bowMinX) * 0.3;
+      game.bow.targetX = game.bow.x;
+    }
+    game.bow.y = canvasH * 0.85;
+
+    game.target.radius = canvasW * CONFIG.TARGET_SIZE_RATIO;
+
+    if (!game.arrow.flying) {
+      game.arrow.x = game.bow.x;
+      game.arrow.y = game.bow.y;
+    }
+  }
+
+  let resizeTimeout = null;
+  function debouncedResize() {
+    if (resizeTimeout) clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(resizeCanvas, 50);
+  }
+
+  window.addEventListener("resize", debouncedResize);
+  window.addEventListener("orientationchange", () => {
+    setTimeout(resizeCanvas, 100);
+  });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", debouncedResize);
+  }
+
+  /* ======================================================================
+     6. ARROWS BAR
+     ====================================================================== */
+  function renderArrows() {
+    arrowsBar.innerHTML = "";
+    for (let i = 0; i < CONFIG.ARROWS_PER_LEVEL; i++) {
+      const arrow = document.createElement("span");
+      arrow.className = "arrow-icon" + (i >= game.arrowsLeft ? " is-used" : "");
+      arrow.textContent = i < game.arrowsLeft ? "🏹" : "➖";
+      arrowsBar.appendChild(arrow);
+    }
+  }
+
+  /* ======================================================================
+     7. TARGET
+     ====================================================================== */
+  function initTarget() {
+    const r = game.target.radius;
+
+    game.target.x = canvasW * 0.7;
+    game.target.y = canvasH * 0.3;
+
+    const speed = CONFIG.TARGET_BASE_SPEED + (game.level - 1) * CONFIG.TARGET_SPEED_INCREMENT;
+
+    if (game.level <= 2) {
+      game.target.bounceMode = "horizontal";
+      game.target.vx = speed * (Math.random() > 0.5 ? 1 : -1);
+      game.target.vy = 0;
+    } else if (game.level <= 4) {
+      game.target.bounceMode = "vertical";
+      game.target.vx = 0;
+      game.target.vy = speed * (Math.random() > 0.5 ? 1 : -1);
+    } else {
+      game.target.bounceMode = "diagonal";
+      game.target.vx = speed * 0.7 * (Math.random() > 0.5 ? 1 : -1);
+      game.target.vy = speed * 0.7 * (Math.random() > 0.5 ? 1 : -1);
+    }
+  }
+
+  function updateTarget() {
+    const t = game.target;
+    const r = t.radius;
+    const padding = 10;
+
+    t.x += t.vx;
+    t.y += t.vy;
+
+    const minX = canvasW * 0.4 + r;
+    const maxX = canvasW - r - padding;
+    const minY = r + padding + 40;
+    const maxY = canvasH * 0.6;
+
+    if (t.x < minX) { t.x = minX; t.vx = Math.abs(t.vx); }
+    if (t.x > maxX) { t.x = maxX; t.vx = -Math.abs(t.vx); }
+    if (t.y < minY) { t.y = minY; t.vy = Math.abs(t.vy); }
+    if (t.y > maxY) { t.y = maxY; t.vy = -Math.abs(t.vy); }
+  }
+
+  function drawTarget() {
+    const t = game.target;
+    const r = t.radius;
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, r * 0.75, 0, Math.PI * 2);
+    ctx.fillStyle = "#2d9cff";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, r * 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#ff4d4d";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, r * 0.25, 0, Math.PI * 2);
+    const gradient = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, r * 0.25);
+    gradient.addColorStop(0, "#ffd700");
+    gradient.addColorStop(1, "#ffaa00");
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    ctx.shadowColor = "rgba(255, 215, 0, 0.6)";
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, r * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    drawStuckArrows();
+  }
+
+  function drawStuckArrows() {
+    const t = game.target;
+    for (const sa of game.stuckArrows) {
+      const ax = t.x + sa.offsetX;
+      const ay = t.y + sa.offsetY;
+      const len = 25;
+
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(sa.angle);
+
+      ctx.beginPath();
+      ctx.moveTo(-len / 2, 0);
+      ctx.lineTo(len / 2, 0);
+      ctx.strokeStyle = "#5D4037";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(len / 2, 0);
+      ctx.lineTo(len / 2 - 8, -4);
+      ctx.lineTo(len / 2 - 8, 4);
+      ctx.closePath();
+      ctx.fillStyle = "#666";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(-len / 2, -3);
+      ctx.lineTo(-len / 2 - 10, -5);
+      ctx.lineTo(-len / 2 - 10, 5);
+      ctx.lineTo(-len / 2, 3);
+      ctx.fillStyle = "#ff5ea8";
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  /* ======================================================================
+     8. ANIMALS - Friendly bonus targets
+     ====================================================================== */
+  function spawnAnimal() {
+    if (game.animals.length >= CONFIG.MAX_ANIMALS) return;
+    if (Math.random() > CONFIG.ANIMAL_SPAWN_CHANCE) return;
+
+    const type = ANIMAL_TYPES[Math.floor(Math.random() * ANIMAL_TYPES.length)];
+    const fromLeft = Math.random() > 0.5;
+    const baseY = canvasH * (0.3 + Math.random() * 0.35);
+
+    game.animals.push({
+      type: type,
+      x: fromLeft ? -type.size : canvasW + type.size,
+      y: baseY,
+      baseY: baseY,
+      vx: (fromLeft ? 1 : -1) * type.speed,
+      phase: Math.random() * Math.PI * 2,
+      tagged: false,
+      waving: false,
+      waveTimer: 0,
+      opacity: 1,
+    });
+  }
+
+  function updateAnimals() {
+    for (let i = game.animals.length - 1; i >= 0; i--) {
+      const a = game.animals[i];
+
+      if (a.waving) {
+        a.waveTimer++;
+        a.opacity = Math.max(0, 1 - a.waveTimer / 60);
+        a.y -= 0.5;
+        if (a.waveTimer > 60) {
+          game.animals.splice(i, 1);
+        }
+        continue;
+      }
+
+      a.x += a.vx;
+      a.phase += 0.15;
+
+      if (a.type.moveType === "hop") {
+        a.y = a.baseY - Math.abs(Math.sin(a.phase)) * 20;
+      } else if (a.type.moveType === "fly") {
+        a.y = a.baseY + Math.sin(a.phase) * 15;
+      }
+
+      if ((a.vx > 0 && a.x > canvasW + a.type.size * 2) ||
+          (a.vx < 0 && a.x < -a.type.size * 2)) {
+        game.animals.splice(i, 1);
+      }
+    }
+  }
+
+  function drawAnimals() {
+    for (const a of game.animals) {
+      ctx.save();
+      ctx.globalAlpha = a.opacity;
+      ctx.translate(a.x, a.y);
+
+      if (a.vx < 0) {
+        ctx.scale(-1, 1);
+      }
+
+      const size = a.type.size;
+
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size, size * 0.8, 0, 0, Math.PI * 2);
+      ctx.fillStyle = a.type.color;
+      ctx.fill();
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.font = `bold ${size}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(a.type.emoji, 0, 0);
+
+      if (a.waving) {
+        ctx.font = "bold 14px 'Baloo 2', sans-serif";
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 3;
+        const text = a.type.sayHi;
+        if (a.vx < 0) ctx.scale(-1, 1);
+        ctx.strokeText(text, 0, -size - 15);
+        ctx.fillText(text, 0, -size - 15);
+      }
+
+      ctx.restore();
+    }
+  }
+
+  function checkAnimalHit() {
+    if (!game.arrow.flying) return false;
+
+    const a = game.arrow;
+
+    for (let i = 0; i < game.animals.length; i++) {
+      const animal = game.animals[i];
+      if (animal.tagged || animal.waving) continue;
+
+      const dx = a.x - animal.x;
+      const dy = a.y - animal.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < animal.type.size) {
+        animal.tagged = true;
+        animal.waving = true;
+        animal.waveTimer = 0;
+        animal.vx = 0;
+
+        game.score += CONFIG.ANIMAL_BONUS;
+        game.levelScore += CONFIG.ANIMAL_BONUS;
+        updateScoreDisplay();
+
+        game.arrow.flying = false;
+
+        createAnimalEffect(animal.x, animal.y, animal.type);
+        playAnimalHit();
+
+        setTimeout(() => checkRoundEnd(), 500);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function createAnimalEffect(x, y, type) {
+    game.animalEffects.push({
+      x: x,
+      y: y,
+      emoji: type.emoji,
+      text: "+" + CONFIG.ANIMAL_BONUS + " Bonus!",
+      life: 1,
+      scale: 0,
+    });
+
+    for (let i = 0; i < 20; i++) {
+      const angle = (Math.PI * 2 * i) / 20 + Math.random() * 0.5;
+      const speed = 2 + Math.random() * 3;
+      game.particles.push({
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 4 + Math.random() * 4,
+        color: type.color,
+        life: 1,
+        decay: 0.02 + Math.random() * 0.02,
+      });
+    }
+  }
+
+  function updateAnimalEffects() {
+    for (let i = game.animalEffects.length - 1; i >= 0; i--) {
+      const e = game.animalEffects[i];
+      e.life -= 0.015;
+      e.scale = Math.min(e.scale + 0.1, 1);
+      e.y -= 1.5;
+
+      if (e.life <= 0) {
+        game.animalEffects.splice(i, 1);
+      }
+    }
+  }
+
+  function drawAnimalEffects() {
+    for (const e of game.animalEffects) {
+      ctx.save();
+      ctx.globalAlpha = e.life;
+      ctx.translate(e.x, e.y);
+      ctx.scale(e.scale, e.scale);
+
+      ctx.font = "bold 36px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(e.emoji, 0, -25);
+
+      ctx.font = "bold 22px 'Baloo 2', sans-serif";
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 4;
+      ctx.strokeText(e.text, 0, 15);
+      ctx.fillStyle = "#ff69b4";
+      ctx.fillText(e.text, 0, 15);
+
+      ctx.restore();
+    }
+  }
+
+  /* ======================================================================
+     9. BOW - Movable along bottom
+     ====================================================================== */
+  function updateBow() {
+    const bowMinX = canvasW * CONFIG.BOW_MIN_X_RATIO;
+    const bowMaxX = canvasW * CONFIG.BOW_MAX_X_RATIO;
+
+    game.bow.targetX = Math.max(bowMinX, Math.min(bowMaxX, game.bow.targetX));
+
+    const dx = game.bow.targetX - game.bow.x;
+    if (Math.abs(dx) > 1) {
+      game.bow.x += dx * 0.15;
+    } else {
+      game.bow.x = game.bow.targetX;
+    }
+
+    if (!game.arrow.flying) {
+      game.arrow.x = game.bow.x;
+      game.arrow.y = game.bow.y;
+    }
+  }
+
+  function drawBow() {
+    const bx = game.bow.x;
+    const by = game.bow.y;
+
+    ctx.save();
+
+    let angle = -Math.PI / 4;
+    let pullBack = 0;
+
+    if (game.aiming.active) {
+      const dx = game.aiming.currentX - game.aiming.startX;
+      const dy = game.aiming.currentY - game.aiming.startY;
+      angle = Math.atan2(-dy, -dx);
+      pullBack = Math.min(Math.sqrt(dx * dx + dy * dy) * 0.3, 30);
+    }
+
+    ctx.translate(bx, by);
+    ctx.rotate(angle + Math.PI / 2);
+
+    const bowHeight = 80;
+    const bowWidth = 25;
+
+    ctx.beginPath();
+    ctx.moveTo(0, -bowHeight / 2);
+    ctx.quadraticCurveTo(-bowWidth - pullBack * 0.3, 0, 0, bowHeight / 2);
+    ctx.strokeStyle = "#8B4513";
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, -bowHeight / 2);
+    ctx.lineTo(-pullBack, 0);
+    ctx.lineTo(0, bowHeight / 2);
+    ctx.strokeStyle = "#ddd";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.restore();
+
+    if (game.aiming.active && !game.arrow.flying) {
+      drawAimingArrow(angle, pullBack);
+    }
+
+    drawBowMoveButtons();
+  }
+
+  function drawBowMoveButtons() {
+    if (game.aiming.active || game.arrow.flying) return;
+
+    const bx = game.bow.x;
+    const by = game.bow.y;
+    const btnSize = 28;
+    const btnY = by + 35;
+
+    ctx.save();
+    ctx.globalAlpha = 0.8;
+
+    ctx.beginPath();
+    ctx.arc(bx - 40, btnY, btnSize / 2, 0, Math.PI * 2);
+    ctx.fillStyle = "#4a9030";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 16px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("◀", bx - 40, btnY);
+
+    ctx.beginPath();
+    ctx.arc(bx + 40, btnY, btnSize / 2, 0, Math.PI * 2);
+    ctx.fillStyle = "#4a9030";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.fillText("▶", bx + 40, btnY);
+
+    ctx.restore();
+  }
+
+  function drawAimingArrow(angle, pullBack) {
+    const bx = game.bow.x;
+    const by = game.bow.y;
+
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(angle);
+
+    const arrowLength = 50;
+
+    ctx.beginPath();
+    ctx.moveTo(-pullBack, 0);
+    ctx.lineTo(-pullBack + arrowLength, 0);
+    ctx.strokeStyle = "#5D4037";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-pullBack + arrowLength, 0);
+    ctx.lineTo(-pullBack + arrowLength - 12, -6);
+    ctx.lineTo(-pullBack + arrowLength - 12, 6);
+    ctx.closePath();
+    ctx.fillStyle = "#666";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(-pullBack, -4);
+    ctx.lineTo(-pullBack - 15, -8);
+    ctx.lineTo(-pullBack - 15, 8);
+    ctx.lineTo(-pullBack, 4);
+    ctx.fillStyle = "#ff5ea8";
+    ctx.fill();
+
+    ctx.restore();
+
+    if (pullBack > 10) {
+      drawTrajectoryPreview(angle, pullBack);
+    }
+  }
+
+  function drawTrajectoryPreview(angle, pullBack) {
+    const power = Math.min(pullBack * CONFIG.ARROW_POWER_SCALE * 2, CONFIG.MAX_POWER);
+    let px = game.bow.x;
+    let py = game.bow.y;
+    let pvx = Math.cos(angle) * power;
+    let pvy = Math.sin(angle) * power;
+
+    ctx.save();
+    ctx.setLineDash([5, 10]);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+
+    for (let i = 0; i < 20; i++) {
+      px += pvx;
+      pvy += CONFIG.ARROW_GRAVITY;
+      py += pvy;
+
+      if (px > canvasW || py > canvasH || py < 0) break;
+
+      ctx.lineTo(px, py);
+    }
+
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ======================================================================
+     10. FLYING ARROW
+     ====================================================================== */
+  function updateArrow() {
+    if (!game.arrow.flying) return;
+
+    const a = game.arrow;
+    a.vy += CONFIG.ARROW_GRAVITY;
+    a.x += a.vx;
+    a.y += a.vy;
+    a.angle = Math.atan2(a.vy, a.vx);
+
+    if (checkAnimalHit()) {
+      return;
+    }
+
+    if (checkTargetHit()) {
+      return;
+    }
+
+    if (a.x > canvasW + 50 || a.y > canvasH + 50 || a.y < -50 || a.x < -50) {
+      arrowMissed();
+    }
+  }
+
+  function drawArrow() {
+    if (!game.arrow.flying) return;
+
+    const a = game.arrow;
+    const length = 40;
+
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.angle);
+
+    ctx.beginPath();
+    ctx.moveTo(-length / 2, 0);
+    ctx.lineTo(length / 2, 0);
+    ctx.strokeStyle = "#5D4037";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(length / 2, 0);
+    ctx.lineTo(length / 2 - 12, -6);
+    ctx.lineTo(length / 2 - 12, 6);
+    ctx.closePath();
+    ctx.fillStyle = "#666";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(-length / 2, -4);
+    ctx.lineTo(-length / 2 - 15, -8);
+    ctx.lineTo(-length / 2 - 15, 8);
+    ctx.lineTo(-length / 2, 4);
+    ctx.fillStyle = "#ff5ea8";
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function shootArrow() {
+    if (game.arrow.flying || game.arrowsLeft <= 0) return;
+
+    const dx = game.aiming.currentX - game.aiming.startX;
+    const dy = game.aiming.currentY - game.aiming.startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 20) return;
+
+    const power = Math.min(dist * CONFIG.ARROW_POWER_SCALE, CONFIG.MAX_POWER);
+    const angle = Math.atan2(-dy, -dx);
+
+    game.arrow.x = game.bow.x;
+    game.arrow.y = game.bow.y;
+    game.arrow.vx = Math.cos(angle) * power;
+    game.arrow.vy = Math.sin(angle) * power;
+    game.arrow.angle = angle;
+    game.arrow.flying = true;
+
+    game.arrowsLeft--;
+    renderArrows();
+
+    playShoot();
+  }
+
+  function checkTargetHit() {
+    const a = game.arrow;
+    const t = game.target;
+    const dx = a.x - t.x;
+    const dy = a.y - t.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > t.radius) return false;
+
+    let points = 0;
+    let ring = "";
+
+    if (dist <= t.radius * 0.25) {
+      points = CONFIG.RING_POINTS.bullseye;
+      ring = "bullseye";
+    } else if (dist <= t.radius * 0.5) {
+      points = CONFIG.RING_POINTS.red;
+      ring = "red";
+    } else if (dist <= t.radius * 0.75) {
+      points = CONFIG.RING_POINTS.blue;
+      ring = "blue";
+    } else {
+      points = CONFIG.RING_POINTS.white;
+      ring = "white";
+    }
+
+    game.score += points;
+    game.levelScore += points;
+    updateScoreDisplay();
+
+    game.arrow.flying = false;
+
+    game.stuckArrows.push({
+      offsetX: dx,
+      offsetY: dy,
+      angle: a.angle,
+    });
+
+    createHitEffect(a.x, a.y, points, ring);
+    createParticles(a.x, a.y, ring);
+
+    if (ring === "bullseye") {
+      playBullseye();
+    } else {
+      playHit();
+    }
+
+    setTimeout(() => checkRoundEnd(), 500);
+
+    return true;
+  }
+
+  function arrowMissed() {
+    const missX = Math.min(Math.max(game.arrow.x, 50), canvasW - 50);
+    const missY = Math.min(Math.max(game.arrow.y, 50), canvasH - 50);
+    createMissEffect(missX, missY);
+
+    game.arrow.flying = false;
+    playMiss();
+    setTimeout(() => checkRoundEnd(), 300);
+  }
+
+  function checkRoundEnd() {
+    if (game.arrowsLeft <= 0) {
+      if (game.level >= CONFIG.TOTAL_LEVELS) {
+        endGame();
+      } else {
+        showLevelComplete();
+      }
+    }
+  }
+
+  /* ======================================================================
+     11. PARTICLES & EFFECTS
+     ====================================================================== */
+  function createParticles(x, y, ring) {
+    const colors = {
+      bullseye: ["#ffd700", "#ffaa00", "#fff"],
+      red: ["#ff4d4d", "#ff6b6b", "#fff"],
+      blue: ["#2d9cff", "#5bb3ff", "#fff"],
+      white: ["#fff", "#ddd", "#eee"],
+    };
+
+    const ringColors = colors[ring] || colors.white;
+    const count = ring === "bullseye" ? 30 : 15;
+
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+      const speed = 2 + Math.random() * 4;
+      game.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 3 + Math.random() * 4,
+        color: ringColors[Math.floor(Math.random() * ringColors.length)],
+        life: 1,
+        decay: 0.02 + Math.random() * 0.02,
+      });
+    }
+  }
+
+  function updateParticles() {
+    for (let i = game.particles.length - 1; i >= 0; i--) {
+      const p = game.particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.1;
+      p.life -= p.decay;
+
+      if (p.life <= 0) {
+        game.particles.splice(i, 1);
+      }
+    }
+  }
+
+  function drawParticles() {
+    for (const p of game.particles) {
+      ctx.save();
+      ctx.globalAlpha = p.life;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function createHitEffect(x, y, points, ring) {
+    game.hitEffects.push({
+      x,
+      y,
+      points,
+      ring,
+      life: 1,
+      scale: 0,
+    });
+  }
+
+  function createMissEffect(x, y) {
+    game.missEffects.push({
+      x,
+      y,
+      life: 1,
+      scale: 0,
+    });
+  }
+
+  function updateHitEffects() {
+    for (let i = game.hitEffects.length - 1; i >= 0; i--) {
+      const e = game.hitEffects[i];
+      e.life -= 0.02;
+      e.scale = Math.min(e.scale + 0.15, 1);
+      e.y -= 1;
+
+      if (e.life <= 0) {
+        game.hitEffects.splice(i, 1);
+      }
+    }
+  }
+
+  function updateMissEffects() {
+    for (let i = game.missEffects.length - 1; i >= 0; i--) {
+      const e = game.missEffects[i];
+      e.life -= 0.025;
+      e.scale = Math.min(e.scale + 0.2, 1);
+      e.y += 2;
+
+      if (e.life <= 0) {
+        game.missEffects.splice(i, 1);
+      }
+    }
+  }
+
+  function drawHitEffects() {
+    for (const e of game.hitEffects) {
+      ctx.save();
+      ctx.globalAlpha = e.life;
+      ctx.translate(e.x, e.y);
+      ctx.scale(e.scale, e.scale);
+
+      ctx.font = "bold 28px 'Baloo 2', sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 4;
+      ctx.strokeText("+" + e.points, 0, 0);
+
+      const colors = {
+        bullseye: "#ffd700",
+        red: "#ff4d4d",
+        blue: "#2d9cff",
+        white: "#fff",
+      };
+      ctx.fillStyle = colors[e.ring] || "#fff";
+      ctx.fillText("+" + e.points, 0, 0);
+
+      if (e.ring === "bullseye") {
+        ctx.font = "bold 20px sans-serif";
+        ctx.fillText("🎯", 0, -35);
+      }
+
+      ctx.restore();
+    }
+  }
+
+  function drawMissEffects() {
+    for (const e of game.missEffects) {
+      ctx.save();
+      ctx.globalAlpha = e.life;
+      ctx.translate(e.x, e.y);
+      ctx.scale(e.scale, e.scale);
+
+      ctx.font = "bold 24px 'Baloo 2', sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 3;
+      ctx.strokeText("Miss!", 0, 0);
+
+      ctx.fillStyle = "#ff6b6b";
+      ctx.fillText("Miss!", 0, 0);
+
+      ctx.restore();
+    }
+  }
+
+  function drawAimHint() {
+    if (game.aiming.active || game.arrow.flying || game.arrowsLeft <= 0) return;
+
+    const bx = game.bow.x;
+    const by = game.bow.y;
+
+    ctx.save();
+    ctx.globalAlpha = 0.7 + 0.3 * Math.sin(Date.now() / 300);
+
+    ctx.font = "bold 12px 'Baloo 2', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 3;
+
+    const hint = "👆 Drag to aim!";
+    ctx.strokeText(hint, bx + 50, by - 55);
+    ctx.fillText(hint, bx + 50, by - 55);
+
+    const moveHint = "◀ ▶ Move bow";
+    ctx.strokeText(moveHint, bx, by + 55);
+    ctx.fillText(moveHint, bx, by + 55);
+
+    ctx.restore();
+  }
+
+  function drawPowerMeter() {
+    if (!game.aiming.active) return;
+
+    const dx = game.aiming.currentX - game.aiming.startX;
+    const dy = game.aiming.currentY - game.aiming.startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const power = Math.min(dist / 150, 1);
+
+    const meterX = 20;
+    const meterY = canvasH * 0.3;
+    const meterW = 15;
+    const meterH = canvasH * 0.4;
+
+    ctx.save();
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.fillRect(meterX - 2, meterY - 2, meterW + 4, meterH + 4);
+
+    ctx.fillStyle = "#ddd";
+    ctx.fillRect(meterX, meterY, meterW, meterH);
+
+    const gradient = ctx.createLinearGradient(0, meterY + meterH, 0, meterY);
+    gradient.addColorStop(0, "#4ade80");
+    gradient.addColorStop(0.5, "#fbbf24");
+    gradient.addColorStop(1, "#ef4444");
+    ctx.fillStyle = gradient;
+
+    const filledH = meterH * power;
+    ctx.fillRect(meterX, meterY + meterH - filledH, meterW, filledH);
+
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(meterX, meterY, meterW, meterH);
+
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillStyle = "#333";
+    ctx.textAlign = "center";
+    ctx.fillText("PWR", meterX + meterW / 2, meterY - 5);
+
+    ctx.restore();
+  }
+
+  /* ======================================================================
+     12. GAME LOOP
+     ====================================================================== */
+  let lastTime = 0;
+  let animationId = null;
+
+  function gameLoop(timestamp) {
+    const delta = timestamp - lastTime;
+    lastTime = timestamp;
+
+    if (phase === "running") {
+      updateBow();
+      updateTarget();
+      updateAnimals();
+      spawnAnimal();
+      updateArrow();
+      updateParticles();
+      updateHitEffects();
+      updateMissEffects();
+      updateAnimalEffects();
+    }
+
+    render();
+
+    animationId = requestAnimationFrame(gameLoop);
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, canvasW, canvasH);
+
+    drawGrass();
+    drawAnimals();
+    drawTarget();
+    drawBow();
+    drawArrow();
+    drawParticles();
+    drawHitEffects();
+    drawMissEffects();
+    drawAnimalEffects();
+    drawAimHint();
+    drawPowerMeter();
+  }
+
+  function drawGrass() {
+    const grassY = canvasH * 0.85;
+    ctx.fillStyle = "#5da33e";
+    ctx.fillRect(0, grassY, canvasW, canvasH - grassY);
+
+    ctx.strokeStyle = "#4a9030";
+    ctx.lineWidth = 2;
+    for (let x = 0; x < canvasW; x += 15) {
+      const h = 8 + Math.random() * 12;
+      ctx.beginPath();
+      ctx.moveTo(x, grassY);
+      ctx.lineTo(x + 3, grassY - h);
+      ctx.stroke();
+    }
+  }
+
+  /* ======================================================================
+     13. INPUT HANDLING
+     ====================================================================== */
+  function getPointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
+  }
+
+  function isOnMoveButton(pos) {
+    if (game.aiming.active || game.arrow.flying) return null;
+
+    const bx = game.bow.x;
+    const by = game.bow.y;
+    const btnY = by + 35;
+    const btnSize = 28;
+
+    const leftDist = Math.sqrt(Math.pow(pos.x - (bx - 40), 2) + Math.pow(pos.y - btnY, 2));
+    const rightDist = Math.sqrt(Math.pow(pos.x - (bx + 40), 2) + Math.pow(pos.y - btnY, 2));
+
+    if (leftDist < btnSize) return "left";
+    if (rightDist < btnSize) return "right";
+    return null;
+  }
+
+  function isOnBowHandle(pos) {
+    const bx = game.bow.x;
+    const by = game.bow.y;
+    const handleRadius = 50;
+
+    const dist = Math.sqrt(Math.pow(pos.x - bx, 2) + Math.pow(pos.y - by, 2));
+    return dist < handleRadius && pos.y > by - 20;
+  }
+
+  function onPointerDown(e) {
+    if (phase !== "running" || game.arrowsLeft <= 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const pos = getPointerPos(e);
+
+    const btn = isOnMoveButton(pos);
+    if (btn) {
+      const step = canvasW * 0.08;
+      if (btn === "left") {
+        game.bow.targetX -= step;
+      } else {
+        game.bow.targetX += step;
+      }
+      return;
+    }
+
+    if (!game.arrow.flying && isOnBowHandle(pos)) {
+      game.bow.isDragging = true;
+      return;
+    }
+
+    if (game.arrow.flying) return;
+
+    game.aiming.active = true;
+    game.aiming.startX = pos.x;
+    game.aiming.startY = pos.y;
+    game.aiming.currentX = pos.x;
+    game.aiming.currentY = pos.y;
+  }
+
+  function onPointerMove(e) {
+    const pos = getPointerPos(e);
+
+    if (game.bow.isDragging) {
+      e.preventDefault();
+      e.stopPropagation();
+      game.bow.targetX = pos.x;
+      return;
+    }
+
+    if (!game.aiming.active) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    game.aiming.currentX = pos.x;
+    game.aiming.currentY = pos.y;
+  }
+
+  function onPointerUp(e) {
+    if (game.bow.isDragging) {
+      game.bow.isDragging = false;
+      return;
+    }
+
+    if (!game.aiming.active) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    game.aiming.active = false;
+    shootArrow();
+  }
+
+  function onPointerCancel(e) {
+    game.aiming.active = false;
+    game.bow.isDragging = false;
+  }
+
+  canvas.addEventListener("mousedown", onPointerDown);
+  canvas.addEventListener("mousemove", onPointerMove);
+  canvas.addEventListener("mouseup", onPointerUp);
+  canvas.addEventListener("mouseleave", onPointerUp);
+
+  canvas.addEventListener("touchstart", onPointerDown, { passive: false });
+  canvas.addEventListener("touchmove", onPointerMove, { passive: false });
+  canvas.addEventListener("touchend", onPointerUp, { passive: false });
+  canvas.addEventListener("touchcancel", onPointerCancel, { passive: false });
+
+  canvas.style.touchAction = "none";
+
+  document.addEventListener("keydown", (e) => {
+    if (phase !== "running") return;
+
+    const step = canvasW * 0.05;
+    if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+      game.bow.targetX -= step;
+      e.preventDefault();
+    } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+      game.bow.targetX += step;
+      e.preventDefault();
+    }
+  });
+
+  /* ======================================================================
+     14. GAME LIFECYCLE
+     ====================================================================== */
+  function startGame() {
+    game.score = 0;
+    game.level = 1;
+    game.arrowsLeft = CONFIG.ARROWS_PER_LEVEL;
+    game.levelScore = 0;
+    game.arrow.flying = false;
+    game.particles = [];
+    game.hitEffects = [];
+    game.stuckArrows = [];
+    game.missEffects = [];
+    game.animals = [];
+    game.animalEffects = [];
+
+    const bowMinX = canvasW * CONFIG.BOW_MIN_X_RATIO;
+    const bowMaxX = canvasW * CONFIG.BOW_MAX_X_RATIO;
+    game.bow.x = bowMinX + (bowMaxX - bowMinX) * 0.3;
+    game.bow.targetX = game.bow.x;
+
+    resizeCanvas();
+    initTarget();
+    renderArrows();
+    updateScoreDisplay();
+
+    hideAllOverlays();
+    phase = "running";
+
+    if (!animationId) {
+      animationId = requestAnimationFrame(gameLoop);
+    }
+  }
+
+  function nextLevel() {
+    game.level++;
+    game.arrowsLeft = CONFIG.ARROWS_PER_LEVEL;
+    game.levelScore = 0;
+    game.arrow.flying = false;
+    game.particles = [];
+    game.hitEffects = [];
+    game.stuckArrows = [];
+    game.missEffects = [];
+    game.animals = [];
+    game.animalEffects = [];
+
+    initTarget();
+    renderArrows();
+    updateScoreDisplay();
+
+    levelChip.classList.remove("is-levelling");
+    void levelChip.offsetWidth;
+    levelChip.classList.add("is-levelling");
+
+    hideAllOverlays();
+    phase = "running";
+
+    playLevelUp();
+  }
+
+  function showLevelComplete() {
+    phase = "levelcomplete";
+    levelScoreEl.textContent = game.levelScore;
+    levelCompleteTitle.textContent = "Level " + game.level + " Complete!";
+    showOverlay(levelCompleteOverlay);
+    playLevelUp();
+  }
+
+  function endGame() {
+    phase = "over";
+
+    const isNewBest = game.score > game.best;
+    if (isNewBest) {
+      game.best = game.score;
+      saveBest(game.score);
+    }
+    if (game.level > game.bestLevel) {
+      game.bestLevel = game.level;
+      saveBestLevel(game.level);
+    }
+
+    finalScoreEl.textContent = game.score;
+    finalBestEl.textContent = game.best;
+    finalLevelEl.textContent = game.level;
+    gameOverEmoji.textContent = isNewBest ? "🏆" : "🎯";
+    newBestBanner.classList.toggle("is-hidden", !isNewBest);
+
+    updateScoreDisplay();
+
+    if (isNewBest) {
+      playFanfare();
+    }
+
+    setTimeout(() => showOverlay(gameOverOverlay), 300);
+  }
+
+  function pauseGame() {
+    if (phase !== "running") return;
+    phase = "paused";
+    showOverlay(pauseOverlay);
+  }
+
+  function resumeGame() {
+    if (phase !== "paused") return;
+    hideOverlay(pauseOverlay);
+    phase = "running";
+  }
+
+  /* ======================================================================
+     15. UI HELPERS
+     ====================================================================== */
+  function showOverlay(el) {
+    el.classList.remove("is-hidden");
+  }
+
+  function hideOverlay(el) {
+    el.classList.add("is-hidden");
+  }
+
+  function hideAllOverlays() {
+    hideOverlay(startOverlay);
+    hideOverlay(pauseOverlay);
+    hideOverlay(levelCompleteOverlay);
+    hideOverlay(gameOverOverlay);
+    hideOverlay(helpOverlay);
+  }
+
+  let shownScore = -1;
+  let shownBest = -1;
+  let shownLevel = -1;
+
+  function updateScoreDisplay() {
+    if (game.score !== shownScore) {
+      shownScore = game.score;
+      scoreValueEl.textContent = game.score;
+    }
+    if (game.best !== shownBest) {
+      shownBest = game.best;
+      bestValueEl.textContent = game.best;
+    }
+    if (game.level !== shownLevel) {
+      shownLevel = game.level;
+      levelValueEl.textContent = game.level;
+    }
+  }
+
+  /* ======================================================================
+     16. EVENT LISTENERS
+     ====================================================================== */
+  document.getElementById("startButton").addEventListener("click", () => {
+    resumeAudio();
+    startGame();
+  });
+
+  document.getElementById("playAgainButton").addEventListener("click", () => {
+    resumeAudio();
+    startGame();
+  });
+
+  document.getElementById("nextLevelButton").addEventListener("click", () => {
+    resumeAudio();
+    nextLevel();
+  });
+
+  document.getElementById("resumeButton").addEventListener("click", () => {
+    resumeAudio();
+    resumeGame();
+  });
+
+  document.getElementById("helpButton").addEventListener("click", () => {
+    if (phase === "running") pauseGame();
+    showOverlay(helpOverlay);
+  });
+
+  document.getElementById("startHelpButton").addEventListener("click", () => {
+    showOverlay(helpOverlay);
+  });
+
+  document.getElementById("closeHelpButton").addEventListener("click", () => {
+    hideOverlay(helpOverlay);
+    if (phase === "paused") {
+      showOverlay(pauseOverlay);
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && phase === "running") pauseGame();
+  });
+
+  window.addEventListener("blur", () => {
+    if (phase === "running") pauseGame();
+  });
+
+  /* ======================================================================
+     17. LOCAL STORAGE
+     ====================================================================== */
+  function loadBest() {
+    try {
+      const val = parseInt(localStorage.getItem(CONFIG.STORAGE_BEST_SCORE), 10);
+      return Number.isFinite(val) && val > 0 ? val : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function saveBest(val) {
+    try {
+      localStorage.setItem(CONFIG.STORAGE_BEST_SCORE, String(val));
+    } catch (e) {}
+  }
+
+  function loadBestLevel() {
+    try {
+      const val = parseInt(localStorage.getItem(CONFIG.STORAGE_BEST_LEVEL), 10);
+      return Number.isFinite(val) && val > 0 ? val : 1;
+    } catch (e) {
+      return 1;
+    }
+  }
+
+  function saveBestLevel(val) {
+    try {
+      localStorage.setItem(CONFIG.STORAGE_BEST_LEVEL, String(val));
+    } catch (e) {}
+  }
+
+  /* ======================================================================
+     18. SOUND - WebAudio API (no external files)
+     ====================================================================== */
+  const soundButton = document.getElementById("soundButton");
+  let soundOn = loadSoundPref();
+  let audioCtx = null;
+
+  function loadSoundPref() {
+    try {
+      return localStorage.getItem(CONFIG.STORAGE_SOUND) !== "off";
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function renderSoundButton() {
+    soundButton.textContent = soundOn ? "🔊" : "🔇";
+    soundButton.setAttribute("aria-pressed", String(soundOn));
+  }
+
+  soundButton.addEventListener("click", () => {
+    soundButton.blur();
+    soundOn = !soundOn;
+    try {
+      localStorage.setItem(CONFIG.STORAGE_SOUND, soundOn ? "on" : "off");
+    } catch (e) {}
+    renderSoundButton();
+    if (soundOn) {
+      resumeAudio();
+      playShoot();
+    }
+  });
+
+  function resumeAudio() {
+    if (!soundOn) return;
+    try {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return;
+      if (!audioCtx) audioCtx = new Ctor();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) {
+      audioCtx = null;
+    }
+  }
+
+  function tone(freq, duration, type, volume, endFreq) {
+    if (!soundOn || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || "sine";
+    osc.frequency.setValueAtTime(freq, now);
+    if (endFreq) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(endFreq, 1), now + duration);
+    }
+    gain.gain.setValueAtTime(volume || 0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
+  }
+
+  function playShoot() {
+    tone(300, 0.1, "triangle", 0.08, 150);
+    setTimeout(() => tone(200, 0.15, "sine", 0.05), 50);
+  }
+
+  function playHit() {
+    tone(500, 0.1, "square", 0.06);
+    setTimeout(() => tone(700, 0.08, "square", 0.05), 40);
+  }
+
+  function playBullseye() {
+    tone(800, 0.1, "triangle", 0.08);
+    setTimeout(() => tone(1000, 0.12, "triangle", 0.08), 80);
+    setTimeout(() => tone(1200, 0.15, "triangle", 0.07), 160);
+  }
+
+  function playMiss() {
+    tone(200, 0.2, "sawtooth", 0.05, 100);
+  }
+
+  function playLevelUp() {
+    tone(660, 0.1, "triangle", 0.07);
+    setTimeout(() => tone(880, 0.12, "triangle", 0.07), 90);
+    setTimeout(() => tone(1100, 0.14, "triangle", 0.06), 180);
+  }
+
+  function playFanfare() {
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((freq, i) => {
+      setTimeout(() => tone(freq, 0.2, "triangle", 0.08), i * 120);
+    });
+  }
+
+  function playAnimalHit() {
+    tone(600, 0.1, "sine", 0.08);
+    setTimeout(() => tone(800, 0.1, "sine", 0.08), 80);
+    setTimeout(() => tone(1000, 0.15, "sine", 0.07), 160);
+    setTimeout(() => tone(1200, 0.1, "sine", 0.06), 240);
+  }
+
+  /* ======================================================================
+     19. BOOT
+     ====================================================================== */
+  resizeCanvas();
+  renderArrows();
+  renderSoundButton();
+  updateScoreDisplay();
+  showOverlay(startOverlay);
+
+  animationId = requestAnimationFrame(gameLoop);
+
+  /* ======================================================================
+     20. TEST HELPERS (for automated QA)
+     ====================================================================== */
+  window.__getArcheryState = function () {
+    return {
+      target: { x: game.target.x, y: game.target.y, radius: game.target.radius, vx: game.target.vx, vy: game.target.vy },
+      bow: { x: game.bow.x, y: game.bow.y, targetX: game.bow.targetX },
+      canvasW: canvasW,
+      canvasH: canvasH,
+      score: game.score,
+      arrowsLeft: game.arrowsLeft,
+      level: game.level,
+      stuckArrows: game.stuckArrows.length,
+      animals: game.animals.map(a => ({ x: a.x, y: a.y, type: a.type.name, tagged: a.tagged })),
+      lastHitEffect: game.hitEffects.length > 0 ? game.hitEffects[game.hitEffects.length - 1] : null,
+      lastAnimalEffect: game.animalEffects.length > 0 ? game.animalEffects[game.animalEffects.length - 1] : null,
+    };
+  };
+
+  let savedVelocity = null;
+  window.__freezeTarget = function () {
+    savedVelocity = { vx: game.target.vx, vy: game.target.vy };
+    game.target.vx = 0;
+    game.target.vy = 0;
+  };
+  
+  window.__unfreezeTarget = function () {
+    if (savedVelocity) {
+      game.target.vx = savedVelocity.vx;
+      game.target.vy = savedVelocity.vy;
+      savedVelocity = null;
+    }
+  };
+
+  window.__setTargetPosition = function (x, y) {
+    game.target.x = x;
+    game.target.y = y;
+  };
+
+  window.__moveBow = function (position) {
+    const bowMinX = canvasW * CONFIG.BOW_MIN_X_RATIO;
+    const bowMaxX = canvasW * CONFIG.BOW_MAX_X_RATIO;
+    
+    if (position === "left") {
+      game.bow.targetX = bowMinX;
+    } else if (position === "right") {
+      game.bow.targetX = bowMaxX;
+    } else if (position === "center") {
+      game.bow.targetX = (bowMinX + bowMaxX) / 2;
+    } else if (typeof position === "number") {
+      game.bow.targetX = position;
+    }
+    
+    for (let i = 0; i < 20; i++) {
+      updateBow();
+    }
+    
+    return { x: game.bow.x, targetX: game.bow.targetX };
+  };
+
+  window.__spawnAnimal = function (type) {
+    const animalType = ANIMAL_TYPES.find(t => t.name === type) || ANIMAL_TYPES[0];
+    const fromLeft = Math.random() > 0.5;
+    const baseY = canvasH * 0.45;
+    
+    const animal = {
+      type: animalType,
+      x: canvasW * 0.5,
+      y: baseY,
+      baseY: baseY,
+      vx: 0,
+      phase: 0,
+      tagged: false,
+      waving: false,
+      waveTimer: 0,
+      opacity: 1,
+    };
+    
+    game.animals.push(animal);
+    return { x: animal.x, y: animal.y, type: animal.type.name };
+  };
+
+  window.__simulateHit = function(ringType) {
+    const t = game.target;
+    const radius = t.radius;
+    
+    let distFactor;
+    switch(ringType) {
+      case 'bullseye': distFactor = 0.15; break;
+      case 'red': distFactor = 0.37; break;
+      case 'blue': distFactor = 0.62; break;
+      case 'white': distFactor = 0.87; break;
+      case 'miss': distFactor = 1.2; break;
+      default: return { success: false, error: "Unknown ring type" };
+    }
+    
+    const dist = radius * distFactor;
+    const arrowX = t.x + dist;
+    const arrowY = t.y;
+    const dx = arrowX - t.x;
+    const dy = arrowY - t.y;
+    const actualDist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (ringType === 'miss') {
+      if (game.arrowsLeft > 0) {
+        game.arrowsLeft--;
+        renderArrows();
+      }
+      return { success: true, ringType: 'miss', points: 0, distance: actualDist, score: game.score };
+    }
+    
+    let points = 0;
+    let ring = "";
+    
+    if (actualDist <= radius * 0.25) {
+      points = CONFIG.RING_POINTS.bullseye;
+      ring = "bullseye";
+    } else if (actualDist <= radius * 0.5) {
+      points = CONFIG.RING_POINTS.red;
+      ring = "red";
+    } else if (actualDist <= radius * 0.75) {
+      points = CONFIG.RING_POINTS.blue;
+      ring = "blue";
+    } else if (actualDist <= radius) {
+      points = CONFIG.RING_POINTS.white;
+      ring = "white";
+    }
+    
+    game.score += points;
+    game.levelScore += points;
+    updateScoreDisplay();
+    
+    if (game.arrowsLeft > 0) {
+      game.arrowsLeft--;
+      renderArrows();
+    }
+    
+    game.stuckArrows.push({ offsetX: dx, offsetY: dy, angle: 0 });
+    createHitEffect(arrowX, arrowY, points, ring);
+    createParticles(arrowX, arrowY, ring);
+    
+    if (ring === "bullseye") {
+      playBullseye();
+    } else {
+      playHit();
+    }
+    
+    setTimeout(() => checkRoundEnd(), 100);
+    
+    return { success: true, ringType: ring, points: points, distance: actualDist, score: game.score, arrowsLeft: game.arrowsLeft };
+  };
+
+  window.__hitAnimal = function() {
+    if (game.animals.length === 0) {
+      window.__spawnAnimal("bunny");
+    }
+    
+    const animal = game.animals.find(a => !a.tagged && !a.waving);
+    if (!animal) return { success: false, error: "No animal to hit" };
+    
+    animal.tagged = true;
+    animal.waving = true;
+    animal.waveTimer = 0;
+    animal.vx = 0;
+    
+    game.score += CONFIG.ANIMAL_BONUS;
+    game.levelScore += CONFIG.ANIMAL_BONUS;
+    updateScoreDisplay();
+    
+    if (game.arrowsLeft > 0) {
+      game.arrowsLeft--;
+      renderArrows();
+    }
+    
+    createAnimalEffect(animal.x, animal.y, animal.type);
+    playAnimalHit();
+    
+    setTimeout(() => checkRoundEnd(), 100);
+    
+    return { 
+      success: true, 
+      animalType: animal.type.name, 
+      bonus: CONFIG.ANIMAL_BONUS, 
+      score: game.score,
+      arrowsLeft: game.arrowsLeft
+    };
+  };
+})();
