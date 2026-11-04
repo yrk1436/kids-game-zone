@@ -39,14 +39,20 @@
     ANIMAL_SPAWN_CHANCE: 0.012,
     MAX_ANIMALS: 2,
 
-    TARGET_BASE_SPEED: 0.5,
-    TARGET_SPEED_INCREMENT: 0.3,
+    TARGET_BASE_SPEED: 0.3,
+    TARGET_SPEED_INCREMENT: 0.35,
 
     ARROW_GRAVITY: 0.15,
     ARROW_POWER_SCALE: 0.12,
     MAX_POWER: 25,
 
     TARGET_SIZE_RATIO: 0.22,
+    ARROW_LENGTH: 40,
+    LEVEL1_GOLD_RATIO: 0.3,
+    GOLD_RATIO: 0.25,
+    LEVEL1_RED_RATIO: 0.52,
+    RED_RATIO: 0.5,
+    BLUE_RATIO: 0.75,
 
     BOW_MIN_X_RATIO: 0.08,
     BOW_MAX_X_RATIO: 0.35,
@@ -152,6 +158,8 @@
     hitEffects: [],
     stuckArrows: [],
     missEffects: [],
+    lastLanding: null,
+    testMode: false,
   };
 
   /* ======================================================================
@@ -231,7 +239,7 @@
     updateVhProperty();
     fitStageToWrapper();
 
-    const rect = stage.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     canvasW = rect.width;
     canvasH = rect.height;
@@ -287,6 +295,91 @@
     }
   }
 
+  function ringRatios() {
+    const levelOne = game.level === 1;
+    return {
+      gold: levelOne ? CONFIG.LEVEL1_GOLD_RATIO : CONFIG.GOLD_RATIO,
+      red: levelOne ? CONFIG.LEVEL1_RED_RATIO : CONFIG.RED_RATIO,
+      blue: CONFIG.BLUE_RATIO,
+    };
+  }
+
+  function scoreRingAtDistance(dist, radius) {
+    const rings = ringRatios();
+    if (dist <= radius * rings.gold) {
+      return { points: CONFIG.RING_POINTS.bullseye, ring: "bullseye" };
+    }
+    if (dist <= radius * rings.red) {
+      return { points: CONFIG.RING_POINTS.red, ring: "red" };
+    }
+    if (dist <= radius * rings.blue) {
+      return { points: CONFIG.RING_POINTS.blue, ring: "blue" };
+    }
+    if (dist <= radius) {
+      return { points: CONFIG.RING_POINTS.white, ring: "white" };
+    }
+    return { points: 0, ring: "miss" };
+  }
+
+  function tipFromFlight(x, y, vx, vy) {
+    const angle = Math.atan2(vy, vx);
+    const half = CONFIG.ARROW_LENGTH / 2;
+    return {
+      x: x + Math.cos(angle) * half,
+      y: y + Math.sin(angle) * half,
+      angle: angle,
+    };
+  }
+
+  function simulateTipPath(startX, startY, vx0, vy0, maxSteps) {
+    let x = startX;
+    let y = startY;
+    let vx = vx0;
+    let vy = vy0;
+    const points = [];
+
+    for (let i = 0; i < maxSteps; i++) {
+      vy += CONFIG.ARROW_GRAVITY;
+      x += vx;
+      y += vy;
+      const tip = tipFromFlight(x, y, vx, vy);
+      points.push({
+        x: tip.x,
+        y: tip.y,
+        angle: tip.angle,
+        bodyX: x,
+        bodyY: y,
+        vx: vx,
+        vy: vy,
+      });
+      if (x > canvasW + 50 || y > canvasH + 50 || y < -50 || x < -50) break;
+    }
+
+    return points;
+  }
+
+  function closestTipToTarget(points, target) {
+    let best = null;
+    for (const p of points) {
+      const dist = Math.hypot(p.x - target.x, p.y - target.y);
+      if (!best || dist < best.dist) {
+        best = { x: p.x, y: p.y, angle: p.angle, dist: dist, bodyX: p.bodyX, bodyY: p.bodyY };
+      }
+    }
+    return best;
+  }
+
+  function aimPowerAndAngle() {
+    const dx = game.aiming.currentX - game.aiming.startX;
+    const dy = game.aiming.currentY - game.aiming.startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    return {
+      dist: dist,
+      power: Math.min(dist * CONFIG.ARROW_POWER_SCALE, CONFIG.MAX_POWER),
+      angle: Math.atan2(-dy, -dx),
+    };
+  }
+
   /* ======================================================================
      7. TARGET
      ====================================================================== */
@@ -335,6 +428,7 @@
   function drawTarget() {
     const t = game.target;
     const r = t.radius;
+    const rings = ringRatios();
 
     ctx.save();
 
@@ -347,18 +441,18 @@
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.arc(t.x, t.y, r * 0.75, 0, Math.PI * 2);
+    ctx.arc(t.x, t.y, r * rings.blue, 0, Math.PI * 2);
     ctx.fillStyle = "#2d9cff";
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(t.x, t.y, r * 0.5, 0, Math.PI * 2);
+    ctx.arc(t.x, t.y, r * rings.red, 0, Math.PI * 2);
     ctx.fillStyle = "#ff4d4d";
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(t.x, t.y, r * 0.25, 0, Math.PI * 2);
-    const gradient = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, r * 0.25);
+    ctx.arc(t.x, t.y, r * rings.gold, 0, Math.PI * 2);
+    const gradient = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, r * rings.gold);
     gradient.addColorStop(0, "#ffd700");
     gradient.addColorStop(1, "#ffaa00");
     ctx.fillStyle = gradient;
@@ -367,7 +461,7 @@
     ctx.shadowColor = "rgba(255, 215, 0, 0.6)";
     ctx.shadowBlur = 15;
     ctx.beginPath();
-    ctx.arc(t.x, t.y, r * 0.25, 0, Math.PI * 2);
+    ctx.arc(t.x, t.y, r * rings.gold, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -417,6 +511,7 @@
      8. ANIMALS - Friendly bonus targets
      ====================================================================== */
   function spawnAnimal() {
+    if (game.testMode) return;
     if (game.animals.length >= CONFIG.MAX_ANIMALS) return;
     if (Math.random() > CONFIG.ANIMAL_SPAWN_CHANCE) return;
 
@@ -512,13 +607,16 @@
     if (!game.arrow.flying) return false;
 
     const a = game.arrow;
+    const tip = tipFromFlight(a.x, a.y, a.vx, a.vy);
+    const tipX = tip.x;
+    const tipY = tip.y;
 
     for (let i = 0; i < game.animals.length; i++) {
       const animal = game.animals[i];
       if (animal.tagged || animal.waving) continue;
 
-      const dx = a.x - animal.x;
-      const dy = a.y - animal.y;
+      const dx = tipX - animal.x;
+      const dy = tipY - animal.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < animal.type.size) {
@@ -635,12 +733,14 @@
 
     let angle = -Math.PI / 4;
     let pullBack = 0;
+    let dragDist = 0;
 
     if (game.aiming.active) {
       const dx = game.aiming.currentX - game.aiming.startX;
       const dy = game.aiming.currentY - game.aiming.startY;
+      dragDist = Math.sqrt(dx * dx + dy * dy);
       angle = Math.atan2(-dy, -dx);
-      pullBack = Math.min(Math.sqrt(dx * dx + dy * dy) * 0.3, 30);
+      pullBack = Math.min(dragDist * 0.3, 30);
     }
 
     ctx.translate(bx, by);
@@ -668,7 +768,7 @@
     ctx.restore();
 
     if (game.aiming.active && !game.arrow.flying) {
-      drawAimingArrow(angle, pullBack);
+      drawAimingArrow(angle, pullBack, dragDist);
     }
 
     drawBowMoveButtons();
@@ -713,7 +813,7 @@
     ctx.restore();
   }
 
-  function drawAimingArrow(angle, pullBack) {
+  function drawAimingArrow(angle, pullBack, dragDist) {
     const bx = game.bow.x;
     const by = game.bow.y;
 
@@ -749,32 +849,32 @@
     ctx.restore();
 
     if (pullBack > 10) {
-      drawTrajectoryPreview(angle, pullBack);
+      drawTrajectoryPreview(angle, dragDist);
     }
   }
 
-  function drawTrajectoryPreview(angle, pullBack) {
-    const power = Math.min(pullBack * CONFIG.ARROW_POWER_SCALE * 2, CONFIG.MAX_POWER);
-    let px = game.bow.x;
-    let py = game.bow.y;
-    let pvx = Math.cos(angle) * power;
-    let pvy = Math.sin(angle) * power;
+  function drawTrajectoryPreview(angle, dragDist) {
+    const power = Math.min(dragDist * CONFIG.ARROW_POWER_SCALE, CONFIG.MAX_POWER);
+    const points = simulateTipPath(
+      game.bow.x,
+      game.bow.y,
+      Math.cos(angle) * power,
+      Math.sin(angle) * power,
+      500
+    );
+
+    if (points.length === 0) return;
 
     ctx.save();
     ctx.setLineDash([5, 10]);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(px, py);
+    ctx.moveTo(game.bow.x, game.bow.y);
 
-    for (let i = 0; i < 20; i++) {
-      px += pvx;
-      pvy += CONFIG.ARROW_GRAVITY;
-      py += pvy;
-
-      if (px > canvasW || py > canvasH || py < 0) break;
-
-      ctx.lineTo(px, py);
+    for (const p of points) {
+      ctx.lineTo(p.x, p.y);
+      if (p.x > canvasW || p.y > canvasH || p.y < 0) break;
     }
 
     ctx.stroke();
@@ -810,7 +910,7 @@
     if (!game.arrow.flying) return;
 
     const a = game.arrow;
-    const length = 40;
+    const length = CONFIG.ARROW_LENGTH;
 
     ctx.save();
     ctx.translate(a.x, a.y);
@@ -845,20 +945,14 @@
   function shootArrow() {
     if (game.arrow.flying || game.arrowsLeft <= 0) return;
 
-    const dx = game.aiming.currentX - game.aiming.startX;
-    const dy = game.aiming.currentY - game.aiming.startY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < 20) return;
-
-    const power = Math.min(dist * CONFIG.ARROW_POWER_SCALE, CONFIG.MAX_POWER);
-    const angle = Math.atan2(-dy, -dx);
+    const aim = aimPowerAndAngle();
+    if (aim.dist < 20) return;
 
     game.arrow.x = game.bow.x;
     game.arrow.y = game.bow.y;
-    game.arrow.vx = Math.cos(angle) * power;
-    game.arrow.vy = Math.sin(angle) * power;
-    game.arrow.angle = angle;
+    game.arrow.vx = Math.cos(aim.angle) * aim.power;
+    game.arrow.vy = Math.sin(aim.angle) * aim.power;
+    game.arrow.angle = aim.angle;
     game.arrow.flying = true;
 
     game.arrowsLeft--;
@@ -870,45 +964,61 @@
   function checkTargetHit() {
     const a = game.arrow;
     const t = game.target;
-    const dx = a.x - t.x;
-    const dy = a.y - t.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    const currentTip = tipFromFlight(a.x, a.y, a.vx, a.vy);
+    const currentDist = Math.hypot(currentTip.x - t.x, currentTip.y - t.y);
 
-    if (dist > t.radius) return false;
+    if (currentDist > t.radius) return false;
 
-    let points = 0;
-    let ring = "";
-
-    if (dist <= t.radius * 0.25) {
-      points = CONFIG.RING_POINTS.bullseye;
-      ring = "bullseye";
-    } else if (dist <= t.radius * 0.5) {
-      points = CONFIG.RING_POINTS.red;
-      ring = "red";
-    } else if (dist <= t.radius * 0.75) {
-      points = CONFIG.RING_POINTS.blue;
-      ring = "blue";
-    } else {
-      points = CONFIG.RING_POINTS.white;
-      ring = "white";
+    const future = simulateTipPath(a.x, a.y, a.vx, a.vy, 160);
+    const inside = [{ x: currentTip.x, y: currentTip.y, angle: currentTip.angle, bodyX: a.x, bodyY: a.y }];
+    for (const p of future) {
+      const dist = Math.hypot(p.x - t.x, p.y - t.y);
+      if (dist > t.radius && inside.length > 0) break;
+      if (dist <= t.radius) inside.push(p);
     }
 
-    game.score += points;
-    game.levelScore += points;
+    const landing = closestTipToTarget(inside, t) || {
+      x: currentTip.x,
+      y: currentTip.y,
+      angle: currentTip.angle,
+      dist: currentDist,
+      bodyX: a.x,
+      bodyY: a.y,
+    };
+
+    const scored = scoreRingAtDistance(landing.dist, t.radius);
+    const tipX = landing.x;
+    const tipY = landing.y;
+    const dx = tipX - t.x;
+    const dy = tipY - t.y;
+
+    game.score += scored.points;
+    game.levelScore += scored.points;
     updateScoreDisplay();
 
     game.arrow.flying = false;
+    game.arrow.x = landing.bodyX != null ? landing.bodyX : tipX;
+    game.arrow.y = landing.bodyY != null ? landing.bodyY : tipY;
+    game.arrow.angle = landing.angle;
 
     game.stuckArrows.push({
       offsetX: dx,
       offsetY: dy,
-      angle: a.angle,
+      angle: landing.angle,
     });
 
-    createHitEffect(a.x, a.y, points, ring);
-    createParticles(a.x, a.y, ring);
+    game.lastLanding = {
+      x: tipX,
+      y: tipY,
+      dist: landing.dist,
+      ring: scored.ring,
+      points: scored.points,
+    };
 
-    if (ring === "bullseye") {
+    createHitEffect(tipX, tipY, scored.points, scored.ring);
+    createParticles(tipX, tipY, scored.ring);
+
+    if (scored.ring === "bullseye") {
       playBullseye();
     } else {
       playHit();
@@ -920,9 +1030,18 @@
   }
 
   function arrowMissed() {
-    const missX = Math.min(Math.max(game.arrow.x, 50), canvasW - 50);
-    const missY = Math.min(Math.max(game.arrow.y, 50), canvasH - 50);
+    const tip = tipFromFlight(game.arrow.x, game.arrow.y, game.arrow.vx, game.arrow.vy);
+    const missX = Math.min(Math.max(tip.x, 50), canvasW - 50);
+    const missY = Math.min(Math.max(tip.y, 50), canvasH - 50);
     createMissEffect(missX, missY);
+
+    game.lastLanding = {
+      x: tip.x,
+      y: tip.y,
+      dist: Infinity,
+      ring: "miss",
+      points: 0,
+    };
 
     game.arrow.flying = false;
     playMiss();
@@ -1384,6 +1503,7 @@
     game.missEffects = [];
     game.animals = [];
     game.animalEffects = [];
+    game.lastLanding = null;
 
     const bowMinX = canvasW * CONFIG.BOW_MIN_X_RATIO;
     const bowMaxX = canvasW * CONFIG.BOW_MAX_X_RATIO;
@@ -1555,10 +1675,12 @@
   });
 
   document.addEventListener("visibilitychange", () => {
+    if (game.testMode) return;
     if (document.hidden && phase === "running") pauseGame();
   });
 
   window.addEventListener("blur", () => {
+    if (game.testMode) return;
     if (phase === "running") pauseGame();
   });
 
@@ -1713,6 +1835,7 @@
      ====================================================================== */
   window.__getArcheryState = function () {
     return {
+      phase: phase,
       target: { x: game.target.x, y: game.target.y, radius: game.target.radius, vx: game.target.vx, vy: game.target.vy },
       bow: { x: game.bow.x, y: game.bow.y, targetX: game.bow.targetX },
       canvasW: canvasW,
@@ -1721,9 +1844,55 @@
       arrowsLeft: game.arrowsLeft,
       level: game.level,
       stuckArrows: game.stuckArrows.length,
+      lastStuck: game.stuckArrows.length > 0 ? game.stuckArrows[game.stuckArrows.length - 1] : null,
       animals: game.animals.map(a => ({ x: a.x, y: a.y, type: a.type.name, tagged: a.tagged })),
       lastHitEffect: game.hitEffects.length > 0 ? game.hitEffects[game.hitEffects.length - 1] : null,
       lastAnimalEffect: game.animalEffects.length > 0 ? game.animalEffects[game.animalEffects.length - 1] : null,
+      lastLanding: game.lastLanding,
+      aiming: {
+        active: game.aiming.active,
+        startX: game.aiming.startX,
+        startY: game.aiming.startY,
+        currentX: game.aiming.currentX,
+        currentY: game.aiming.currentY,
+      },
+      arrowFlying: game.arrow.flying,
+    };
+  };
+
+  window.__setTestMode = function (on) {
+    game.testMode = !!on;
+    if (game.testMode) {
+      game.animals = [];
+    }
+    return game.testMode;
+  };
+
+  window.__getAimPreview = function () {
+    if (!game.aiming.active) return null;
+    const aim = aimPowerAndAngle();
+    const points = simulateTipPath(
+      game.bow.x,
+      game.bow.y,
+      Math.cos(aim.angle) * aim.power,
+      Math.sin(aim.angle) * aim.power,
+      500
+    );
+    const closest = closestTipToTarget(points, game.target);
+    const scored = closest ? scoreRingAtDistance(closest.dist, game.target.radius) : { points: 0, ring: "miss" };
+    const endpoint = points.length > 0 ? points[points.length - 1] : { x: game.bow.x, y: game.bow.y };
+    return {
+      power: aim.power,
+      angle: aim.angle,
+      dragDist: aim.dist,
+      endpoint: { x: endpoint.x, y: endpoint.y },
+      closestToTarget: closest ? {
+        x: closest.x,
+        y: closest.y,
+        dist: closest.dist,
+        ring: scored.ring,
+        points: scored.points,
+      } : null,
     };
   };
 
@@ -1816,25 +1985,13 @@
         game.arrowsLeft--;
         renderArrows();
       }
+      game.lastLanding = { x: arrowX, y: arrowY, dist: actualDist, ring: "miss", points: 0 };
       return { success: true, ringType: 'miss', points: 0, distance: actualDist, score: game.score };
     }
     
-    let points = 0;
-    let ring = "";
-    
-    if (actualDist <= radius * 0.25) {
-      points = CONFIG.RING_POINTS.bullseye;
-      ring = "bullseye";
-    } else if (actualDist <= radius * 0.5) {
-      points = CONFIG.RING_POINTS.red;
-      ring = "red";
-    } else if (actualDist <= radius * 0.75) {
-      points = CONFIG.RING_POINTS.blue;
-      ring = "blue";
-    } else if (actualDist <= radius) {
-      points = CONFIG.RING_POINTS.white;
-      ring = "white";
-    }
+    const scored = scoreRingAtDistance(actualDist, radius);
+    const points = scored.points;
+    const ring = scored.ring;
     
     game.score += points;
     game.levelScore += points;
@@ -1846,6 +2003,7 @@
     }
     
     game.stuckArrows.push({ offsetX: dx, offsetY: dy, angle: 0 });
+    game.lastLanding = { x: arrowX, y: arrowY, dist: actualDist, ring: ring, points: points };
     createHitEffect(arrowX, arrowY, points, ring);
     createParticles(arrowX, arrowY, ring);
     
@@ -1858,6 +2016,51 @@
     setTimeout(() => checkRoundEnd(), 100);
     
     return { success: true, ringType: ring, points: points, distance: actualDist, score: game.score, arrowsLeft: game.arrowsLeft };
+  };
+  
+  window.__getTrajectoryEndpoint = function(startX, startY, endX, endY) {
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(-dy, -dx);
+    const power = Math.min(dist * CONFIG.ARROW_POWER_SCALE, CONFIG.MAX_POWER);
+    const points = simulateTipPath(
+      game.bow.x,
+      game.bow.y,
+      Math.cos(angle) * power,
+      Math.sin(angle) * power,
+      500
+    );
+    const last = points.length > 0 ? points[points.length - 1] : { x: game.bow.x, y: game.bow.y };
+    const closest = closestTipToTarget(points, game.target);
+    return { x: last.x, y: last.y, power: power, angle: angle, closest: closest };
+  };
+  
+  window.__startGame = function() {
+    document.getElementById('startButton').click();
+  };
+  
+  window.__resetForTest = function() {
+    game.score = 0;
+    game.level = 1;
+    game.arrowsLeft = CONFIG.ARROWS_PER_LEVEL;
+    game.levelScore = 0;
+    game.arrow.flying = false;
+    game.particles = [];
+    game.hitEffects = [];
+    game.stuckArrows = [];
+    game.missEffects = [];
+    game.animals = [];
+    game.animalEffects = [];
+    game.lastLanding = null;
+    game.aiming.active = false;
+    game.arrow.flying = false;
+    if (phase === "over" || phase === "levelcomplete" || phase === "paused") {
+      phase = "running";
+      hideAllOverlays();
+    }
+    renderArrows();
+    updateScoreDisplay();
   };
 
   window.__hitAnimal = function() {
