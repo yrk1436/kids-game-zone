@@ -1,0 +1,27 @@
+{
+  "name": "kids-game-zone",
+  "version": "1.0.0",
+  "description": "A little hub of browser games for a 7-year-old. Plain HTML, CSS and vanilla\r JavaScript — no frameworks, no bundler, no `npm install`.",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:chrome": "npx playwright test --project='Desktop Chrome'",
+    "test:iphone": "npx playwright test --project='iPhone 13 Safari'",
+    "serve": "npx http-server -p 8080 -c-1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yrk1436/kids-game-zone.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yrk1436/kids-game-zone/issues"
+  },
+  "homepage": "https://github.com/yrk1436/kids-game-zone#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "http-server": "^14.1.1"
+  }
+}

@@ -6,3 +6,7 @@ desktop.ini
 # Test / tooling artifacts
 .playwright-mcp/
 *.log
+node_modules/
+test-results/
+playwright-report/
+playwright/.cache/
