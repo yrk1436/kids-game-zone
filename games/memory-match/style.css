@@ -1,0 +1,486 @@
+/* ==========================================================================
+   Memory Match — game-specific styles.
+   Shared theme (colours, .btn, .game-bar, .score-chip) lives in ../../style.css
+   ========================================================================== */
+
+body.game-page {
+  background: linear-gradient(180deg, #7fd8ff 0%, #c5ecff 40%, #ffe7a8 100%);
+  height: 100vh;
+  height: 100dvh;
+  height: 100svh;
+  overflow: hidden;
+  /* Extra insurance against iPhone double-tap zoom while flipping cards. */
+  touch-action: manipulation;
+}
+
+.game-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100svh;
+  max-height: 100svh;
+  padding: max(0.45rem, env(safe-area-inset-top))
+    max(0.55rem, env(safe-area-inset-right))
+    max(0.45rem, env(safe-area-inset-bottom))
+    max(0.55rem, env(safe-area-inset-left));
+  gap: 0.45rem;
+}
+
+.bar-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.game-page .scoreboard {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn--help,
+.btn--help-start {
+  background: var(--blue);
+}
+
+.back-btn {
+  gap: 0.35rem;
+}
+
+/* --------------------------------------------------------------------------
+   Stage + card grid — fills leftover viewport so a 4×5 board fits on iPhone
+   -------------------------------------------------------------------------- */
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 6px solid #fff;
+  box-shadow: var(--shadow-soft);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.22), transparent 32%),
+    linear-gradient(180deg, #1f8f6a 0%, #2aa56a 42%, #3cb86a 100%);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card-grid {
+  display: grid;
+  gap: clamp(6px, 1.6vmin, 14px);
+  padding: clamp(8px, 2vmin, 18px);
+  width: 100%;
+  height: 100%;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows, 4), minmax(0, 1fr));
+  align-content: stretch;
+}
+
+/* --------------------------------------------------------------------------
+   Cards — 3D flip, big tap targets, no zoom
+   -------------------------------------------------------------------------- */
+.card {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 56px;
+  min-height: 56px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card:focus-visible {
+  outline: 4px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 16px;
+}
+
+/* 2.5D flip that works on iPhone Safari. Avoid preserve-3d / backface-visibility,
+   which leak the hidden emoji through the card back on WebKit. */
+.card__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.card__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  box-shadow: 0 6px 0 rgba(31, 42, 68, 0.2);
+  font-size: clamp(1.55rem, 7.4vmin, 3.3rem);
+  line-height: 1;
+  transition: transform 0.22s ease, opacity 0.16s ease;
+}
+
+.card__face--back {
+  z-index: 2;
+  opacity: 1;
+  transform: scaleX(1);
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(31, 42, 68, 0.25);
+  border: 3px solid #fff3d1;
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.35), transparent 38%),
+    repeating-linear-gradient(
+      135deg,
+      #5b3dff 0 11px,
+      #7a4dff 11px 22px
+    );
+}
+
+.card__face--front {
+  z-index: 1;
+  opacity: 0;
+  transform: scaleX(0);
+  background: linear-gradient(180deg, #ffffff 0%, #fff6d8 100%);
+  border: 4px solid var(--card-color, var(--blue));
+}
+
+.card.is-flipped .card__face--back,
+.card.is-matched .card__face--back {
+  z-index: 1;
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.card.is-flipped .card__face--front,
+.card.is-matched .card__face--front {
+  z-index: 2;
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.card.is-matched .card__face--front {
+  border-color: #ffe566;
+  box-shadow: 0 0 0 4px rgba(255, 214, 10, 0.45), 0 8px 18px rgba(255, 214, 10, 0.35);
+}
+
+.card.is-matched {
+  animation: match-pop 0.55s cubic-bezier(0.18, 1.4, 0.5, 1);
+}
+
+.card.is-mismatch {
+  animation: mismatch-shake 0.42s ease;
+}
+
+.card.is-matched .card__burst {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.card__burst {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  z-index: 3;
+  font-size: clamp(1rem, 3.6vmin, 1.6rem);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.4);
+  transition: opacity 0.2s ease, transform 0.35s ease;
+  filter: drop-shadow(0 2px 4px rgba(31, 42, 68, 0.25));
+}
+
+@keyframes match-pop {
+  0% {
+    transform: scale(0.86) rotate(-4deg);
+  }
+  55% {
+    transform: scale(1.12) rotate(3deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes mismatch-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-8px);
+  }
+  75% {
+    transform: translateX(8px);
+  }
+}
+
+@media (hover: hover) {
+  .card:hover:not(.is-flipped):not(.is-matched) .card__face--back {
+    filter: brightness(1.08);
+    transform: translateY(-2px) scaleX(1);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Overlays
+   -------------------------------------------------------------------------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem;
+  background: rgba(31, 42, 68, 0.38);
+  backdrop-filter: blur(4px);
+  animation: overlay-in 0.22s ease-out;
+  z-index: 20;
+}
+
+.overlay.is-hidden {
+  display: none;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.overlay__card {
+  width: min(94%, 460px);
+  max-height: 96%;
+  overflow: auto;
+  padding: clamp(0.85rem, 2.4vh, 1.5rem) clamp(0.85rem, 3.4vw, 1.6rem);
+  text-align: center;
+  background: #fff;
+  border: 6px solid var(--blue);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 14px 0 rgba(31, 42, 68, 0.15), 0 24px 44px rgba(31, 42, 68, 0.3);
+  animation: card-pop 0.32s cubic-bezier(0.18, 1.3, 0.5, 1);
+}
+
+.overlay__card--win {
+  border-color: var(--green);
+}
+
+.overlay__card--help {
+  text-align: left;
+}
+
+@keyframes card-pop {
+  from {
+    transform: scale(0.8) translateY(18px);
+  }
+  to {
+    transform: scale(1) translateY(0);
+  }
+}
+
+.overlay__emoji {
+  margin: 0;
+  font-size: clamp(2.1rem, 7vh, 3.2rem);
+  line-height: 1;
+}
+
+.overlay__title {
+  margin: 0.3rem 0 0.4rem;
+  font-size: clamp(1.4rem, 5vw, 2.1rem);
+  font-weight: 800;
+}
+
+.overlay__text {
+  margin: 0.25rem 0 0.7rem;
+  font-size: clamp(0.92rem, 2.4vw, 1.08rem);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.overlay__pick {
+  margin: 0 0 0.55rem;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.overlay__score {
+  margin: 0.2rem 0;
+  font-size: clamp(1.25rem, 4vw, 1.8rem);
+  font-weight: 800;
+}
+
+.overlay__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: center;
+  margin-top: 0.35rem;
+}
+
+.overlay__btn {
+  min-width: 160px;
+}
+
+.overlay__best {
+  margin: 0.2rem 0 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: clamp(1rem, 3vw, 1.25rem);
+  font-weight: 800;
+  color: #7a4a00;
+  background: linear-gradient(90deg, var(--yellow), #fff0a8, var(--yellow));
+  animation: best-wiggle 0.7s ease-in-out infinite;
+}
+
+.overlay__best.is-hidden {
+  display: none;
+}
+
+@keyframes best-wiggle {
+  0%,
+  100% {
+    transform: rotate(-2deg) scale(1);
+  }
+  50% {
+    transform: rotate(2deg) scale(1.05);
+  }
+}
+
+.difficulty {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0 0 0.75rem;
+}
+
+.difficulty__btn {
+  min-height: 62px;
+  width: 100%;
+  line-height: 1.15;
+}
+
+.difficulty__btn span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.86em;
+  font-weight: 700;
+  opacity: 0.92;
+}
+
+.help-content {
+  margin: 0.4rem 0 0.8rem;
+}
+
+.help-section {
+  margin-bottom: 0.7rem;
+}
+
+.help-section h3 {
+  margin: 0 0 0.2rem;
+  font-size: clamp(1rem, 3vw, 1.12rem);
+  font-weight: 800;
+}
+
+.help-section p {
+  margin: 0;
+  font-size: clamp(0.88rem, 2.2vw, 0.98rem);
+  color: var(--ink-soft);
+}
+
+/* --------------------------------------------------------------------------
+   Win confetti
+   -------------------------------------------------------------------------- */
+.confetti {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 15;
+}
+
+.confetti__bit {
+  position: absolute;
+  top: -10%;
+  font-size: clamp(1.1rem, 4vw, 1.8rem);
+  animation: confetti-fall 2.4s linear forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120vh) rotate(540deg);
+    opacity: 0.2;
+  }
+}
+
+.hint {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(0.82rem, 2.1vw, 1rem);
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* --------------------------------------------------------------------------
+   Compact chrome so the board stays on-screen on phones
+   -------------------------------------------------------------------------- */
+@media (max-width: 520px) {
+  .back-btn__text {
+    display: none;
+  }
+
+  .back-btn {
+    min-width: 52px;
+    padding: 0.45rem 0.7rem;
+  }
+
+  .game-bar__title {
+    order: 5;
+    width: 100%;
+    text-align: center;
+    font-size: 1.15rem;
+  }
+
+  .score-chip {
+    min-width: 68px;
+    padding: 0.22rem 0.5rem;
+  }
+
+  .score-chip__value {
+    font-size: 1.15rem;
+  }
+
+  .btn {
+    min-height: 52px;
+  }
+
+  .hint {
+    display: none;
+  }
+}
+
+@media (max-height: 700px) {
+  .hint {
+    display: none;
+  }
+}
+
+@media (max-height: 620px) {
+  .game-bar {
+    gap: 0.35rem;
+  }
+
+  .overlay__card {
+    padding: 0.7rem 0.8rem;
+  }
+
+  .overlay__emoji {
+    font-size: 1.8rem;
+  }
+}
