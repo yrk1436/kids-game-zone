@@ -1,0 +1,259 @@
+body.game-page {
+  background: linear-gradient(180deg, #8fe0ff 0%, #cdf3ff 50%, #fff6cf 100%);
+  overflow-x: hidden;
+}
+
+.bar-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.scoreboard--2p .score-chip--p1 {
+  border-color: var(--blue);
+}
+.scoreboard--2p .score-chip--p2 {
+  border-color: var(--orange);
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.player-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.player-bar__label {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+
+.player-toggle {
+  min-height: 52px;
+  padding: 0.6rem 1.4rem;
+  border: 4px solid var(--blue);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 800;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+}
+
+.player-toggle--p2 {
+  border-color: var(--orange);
+}
+
+.stage {
+  position: relative;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(0.5rem, 2vw, 1rem);
+  border-radius: var(--radius-lg);
+  border: 6px solid #fff;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow-soft);
+}
+
+.stage__hint {
+  text-align: center;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin: 0 0 0.75rem;
+}
+
+.hunt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(8px, 2vw, 12px);
+}
+
+@media (min-width: 520px) {
+  .hunt-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.hunt-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: clamp(88px, 22vw, 110px);
+  padding: 0.5rem;
+  border: 4px solid var(--card-edge);
+  border-radius: var(--radius-md);
+  background: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 5px 0 rgba(31, 42, 68, 0.1);
+  transition: transform 0.12s ease, opacity 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hunt-cell:active:not(.is-found) {
+  transform: scale(0.96);
+}
+
+.hunt-cell__emoji {
+  font-size: clamp(2rem, 6vw, 2.6rem);
+  line-height: 1;
+}
+
+.hunt-cell__name {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.hunt-cell.is-found {
+  opacity: 0.55;
+  border-color: var(--green);
+  animation: hunt-pop 0.35s ease;
+}
+
+.hunt-cell.is-found .hunt-cell__name::after {
+  content: " ✓";
+  color: var(--green);
+}
+
+.hunt-cell.found-p1 {
+  box-shadow: 0 0 0 3px var(--blue);
+}
+.hunt-cell.found-p2 {
+  box-shadow: 0 0 0 3px var(--orange);
+}
+
+@keyframes hunt-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.player-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(31, 42, 68, 0.35);
+  backdrop-filter: blur(3px);
+  z-index: 10;
+  min-height: 320px;
+}
+
+.overlay__card {
+  width: min(94%, 520px);
+  max-height: 90%;
+  overflow: auto;
+  padding: clamp(1rem, 3vh, 1.75rem);
+  text-align: center;
+  background: #fff;
+  border: 6px solid var(--green);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.overlay__card--win {
+  border-color: var(--yellow);
+}
+
+.overlay__card--help {
+  border-color: var(--blue);
+  text-align: left;
+}
+
+.overlay__card--intro {
+  border-color: var(--purple);
+}
+
+.overlay__emoji {
+  margin: 0;
+  font-size: clamp(2.4rem, 8vh, 3.4rem);
+}
+
+.overlay__title {
+  margin: 0.35rem 0;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 800;
+}
+
+.overlay__text {
+  margin: 0.5rem 0;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.overlay__text--small {
+  font-size: 0.95rem;
+  margin-top: 1rem;
+}
+
+.overlay__score {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.overlay__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.overlay__btn {
+  min-width: 160px;
+}
+
+.intro-badge {
+  margin: 0;
+  font-weight: 800;
+  color: var(--purple);
+}
+
+.intro-icon {
+  font-size: 3rem;
+  margin: 0.25rem 0;
+}
+
+.help-content p {
+  margin: 0.5rem 0;
+  font-weight: 600;
+}
+
+.hint {
+  text-align: center;
+  max-width: 720px;
+  margin: 0.5rem auto 1rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding: 0 1rem;
+}
