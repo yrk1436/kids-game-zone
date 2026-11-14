@@ -23,6 +23,7 @@ const teslaTouchscreen = {
 
 module.exports = defineConfig({
   testDir: './tests',
+  testIgnore: ['**/_*.spec.js'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

@@ -125,7 +125,7 @@ body {
    Hub page layout
    ========================================================================== */
 .hub {
-  max-width: 1200px;
+  max-width: min(96vw, 1400px);
   margin: 0 auto;
   padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1rem, 4vw, 2rem) 3rem;
 }

@@ -23,19 +23,8 @@ async function saveShot(page, name, projectName) {
 
 async function activate(page, locator, isTouch) {
   await expect(locator).toBeVisible();
-  if (isTouch) {
-    await locator.tap();
-  } else {
-    await locator.click();
-  }
-}
-
-async function dismissIntroIfAny(page, isTouch) {
-  const intro = page.getByTestId("new-item-overlay");
-  if (await intro.isVisible()) {
-    await activate(page, page.locator("#dismissIntroButton"), isTouch);
-    await expect(intro).toBeHidden({ timeout: 5000 });
-  }
+  if (isTouch) await locator.tap();
+  else await locator.click();
 }
 
 async function assertNoHorizontalScroll(page) {
@@ -45,73 +34,6 @@ async function assertNoHorizontalScroll(page) {
   });
   expect(ok, "page should not scroll horizontally").toBeTruthy();
 }
-
-function trackConsoleErrors(page) {
-  const errors = [];
-  page.on("console", (msg) => {
-    if (msg.type() === "error") errors.push(msg.text());
-  });
-  return errors;
-}
-
-test.describe("Scavenger Hunt", () => {
-  test("dashboard link and 1-player round complete", async ({ page }, testInfo) => {
-    const isTouch = !!testInfo.project.use.hasTouch;
-    const consoleErrors = trackConsoleErrors(page);
-    const projectName = testInfo.project.name;
-
-    await page.goto("/index.html");
-    await assertNoHorizontalScroll(page);
-    const tile = page.locator('a[href="games/scavenger-hunt/index.html"]');
-    await expect(tile).toBeVisible();
-    await activate(page, tile, isTouch);
-
-    await expect(page.getByTestId("start-overlay")).toBeVisible();
-    await saveShot(page, "scavenger-start", projectName);
-
-    await activate(page, page.locator("#start1P"), isTouch);
-    await expect(page.getByTestId("start-overlay")).toBeHidden();
-
-    const cells = page.getByTestId("hunt-cell");
-    await expect(cells).toHaveCount(12);
-
-    const count = await cells.count();
-    for (let i = 0; i < count; i++) {
-      await dismissIntroIfAny(page, isTouch);
-      await activate(page, cells.nth(i), isTouch);
-    }
-
-    await expect(page.getByTestId("round-complete-overlay")).toBeVisible({ timeout: 10000 });
-    await saveShot(page, "scavenger-round-complete-1p", projectName);
-    await assertNoHorizontalScroll(page);
-
-    const bad = consoleErrors.filter((e) => !/favicon|Failed to load resource/i.test(e));
-    expect(bad).toEqual([]);
-  });
-
-  test("2-player scoreboard and winner", async ({ page }, testInfo) => {
-    const isTouch = !!testInfo.project.use.hasTouch;
-    const projectName = testInfo.project.name;
-
-    await page.goto("/games/scavenger-hunt/index.html");
-    await activate(page, page.locator("#start2P"), isTouch);
-    await expect(page.getByTestId("player-bar")).toBeVisible();
-
-    const cells = page.getByTestId("hunt-cell");
-    const n = await cells.count();
-    for (let i = 0; i < n; i++) {
-      await dismissIntroIfAny(page, isTouch);
-      if (i % 3 === 1) {
-        await activate(page, page.getByTestId("player-toggle"), isTouch);
-      }
-      await activate(page, cells.nth(i), isTouch);
-    }
-
-    await expect(page.getByTestId("round-complete-overlay")).toBeVisible();
-    await expect(page.getByTestId("winner-text")).toBeVisible();
-    await saveShot(page, "scavenger-2p-winner", projectName);
-  });
-});
 
 test.describe("License Plate Bingo", () => {
   test("1-player bingo line and trip localStorage", async ({ page }, testInfo) => {
@@ -174,7 +96,6 @@ test.describe("License Plate Bingo", () => {
       if (await bingo.isVisible()) {
         await activate(page, page.locator("#keepPlayingButton"), isTouch);
       }
-      await dismissIntroIfAny(page, isTouch);
       const cell = cells.nth(i);
       const cls = (await cell.getAttribute("class")) || "";
       if (cls.includes("is-free") || cls.includes("is-marked")) continue;
@@ -190,8 +111,8 @@ test.describe("License Plate Bingo", () => {
   });
 });
 
-test("hub tiles for new games", async ({ page }) => {
+test("hub has license plate bingo and no scavenger hunt", async ({ page }) => {
   await page.goto("/index.html");
-  await expect(page.locator('a[href="games/scavenger-hunt/index.html"]')).toBeVisible();
   await expect(page.locator('a[href="games/license-plate-bingo/index.html"]')).toBeVisible();
+  await expect(page.locator('a[href="games/scavenger-hunt/index.html"]')).toHaveCount(0);
 });
