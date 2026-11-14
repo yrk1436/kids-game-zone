@@ -5,32 +5,29 @@
 
 body.game-page {
   background: linear-gradient(180deg, #8fe0ff 0%, #cdf3ff 45%, #ffe9a8 100%);
-  overflow: hidden; /* the game should never scroll */
+  overflow-x: hidden;
+  overflow-y: auto;
+  --game-chrome: clamp(14rem, 30vh, 17rem);
 }
 
 /* --------------------------------------------------------------------------
-   The stage is a fixed 3:2 box so the board keeps its shape on every screen.
-   Height is capped so the top bar, the move buttons and the hint all stay
-   visible on a laptop or a landscape tablet.
+   Responsive 3:2 stage
    -------------------------------------------------------------------------- */
 .stage {
   position: relative;
-  width: min(100%, calc(var(--stage-max-h) * 1.5));
-  max-width: 720px;
+  width: min(96vw, calc((100dvh - var(--game-chrome)) * 1.5), 1320px);
+  max-height: calc(100dvh - var(--game-chrome));
   aspect-ratio: 3 / 2;
   margin: 0 auto;
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 6px solid #fff;
   box-shadow: var(--shadow-soft);
-  /* Stop the browser scrolling / zooming when a kid drags the basket. */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   cursor: grab;
-
-  --stage-max-h: 50vh;
 }
 
 .stage:active {
@@ -250,20 +247,28 @@ kbd {
 /* --------------------------------------------------------------------------
    Small screens / short landscape tablets
    -------------------------------------------------------------------------- */
+@media (min-width: 900px) {
+  .mover__btn {
+    width: clamp(100px, 14vw, 140px);
+    height: clamp(72px, 10vw, 96px);
+    font-size: clamp(2rem, 3vw, 2.75rem);
+  }
+}
+
 @media (max-width: 720px) {
+  body.game-page {
+    --game-chrome: clamp(15rem, 34vh, 17rem);
+  }
   .game-bar__title {
     order: 3;
     width: 100%;
     text-align: center;
   }
-  .stage {
-    --stage-max-h: 42vh;
-  }
 }
 
 @media (max-height: 600px) {
-  .stage {
-    --stage-max-h: 46vh;
+  body.game-page {
+    --game-chrome: 12.5rem;
   }
   .hint {
     display: none;

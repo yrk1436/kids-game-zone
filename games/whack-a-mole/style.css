@@ -5,7 +5,9 @@
 
 body.game-page {
   background: linear-gradient(180deg, #8fe0ff 0%, #cdf3ff 45%, #c9e6b8 100%);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  --game-chrome: clamp(13rem, 26vh, 15.5rem);
 }
 
 /* --------------------------------------------------------------------------
@@ -55,8 +57,8 @@ body.game-page {
    -------------------------------------------------------------------------- */
 .stage {
   position: relative;
-  width: min(100%, 520px);
-  max-width: 520px;
+  width: min(96vw, calc(100dvh - var(--game-chrome)), 920px);
+  max-height: calc(100dvh - var(--game-chrome));
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   border-radius: var(--radius-lg);
@@ -621,6 +623,6 @@ body.game-page {
 
 @media (max-height: 550px) {
   .stage {
-    max-width: min(100%, 45vh);
+    width: min(96vw, calc(100dvh - var(--game-chrome)));
   }
 }

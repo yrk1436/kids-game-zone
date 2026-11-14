@@ -50,18 +50,18 @@
     </header>
 
     <!-- The stage keeps a fixed 3:2 shape so the board never stretches. ----->
-    <div class="stage" id="stage">
-      <canvas id="gameCanvas" aria-label="Snake game board" role="img"></canvas>
+    <div class="stage" id="stage" data-testid="snake-stage">
+      <canvas id="gameCanvas" aria-label="Snake game board" role="img" data-testid="snake-canvas"></canvas>
 
       <!-- START screen -->
-      <div class="overlay" id="startOverlay">
+      <div class="overlay" id="startOverlay" data-testid="start-overlay">
         <div class="overlay__card">
           <p class="overlay__emoji">🐍</p>
           <h2 class="overlay__title">Feed the snake!</h2>
           <p class="overlay__text">
-            Steer with the <strong>arrow keys</strong>, a <strong>swipe</strong>, or the buttons
-            below. Gobble the blinking dots to grow — eat enough to <strong>level up</strong> and
-            speed up, but don't bite your own tail!
+            Steer with <strong>tap</strong> (tap where you want to go), a <strong>swipe</strong>,
+            the <strong>arrow keys</strong>, or the buttons below. Gobble the blinking dots to grow —
+            eat enough to <strong>level up</strong> and speed up, but don't bite your own tail!
           </p>
           <button class="btn btn--green overlay__btn" id="startButton" type="button">Start ▶</button>
         </div>
@@ -77,7 +77,7 @@
       </div>
 
       <!-- GAME OVER screen -->
-      <div class="overlay is-hidden" id="gameOverOverlay">
+      <div class="overlay is-hidden" id="gameOverOverlay" data-testid="game-over-overlay">
         <div class="overlay__card">
           <p class="overlay__emoji" id="gameOverEmoji">💥</p>
           <h2 class="overlay__title" id="gameOverTitle">Oops!</h2>
@@ -100,15 +100,16 @@
 
     <!-- On-screen D-pad for touch. Also works with mouse and is keyboard
          reachable. Arrow keys / WASD and swiping the board do the same thing. -->
-    <div class="dpad" id="dpad" aria-label="Direction controls">
+    <div class="dpad" id="dpad" aria-label="Direction controls" data-testid="snake-dpad">
       <button class="dpad__btn dpad__btn--up" data-dir="up" type="button" aria-label="Up">⬆️</button>
       <button class="dpad__btn dpad__btn--left" data-dir="left" type="button" aria-label="Left">⬅️</button>
       <button class="dpad__btn dpad__btn--right" data-dir="right" type="button" aria-label="Right">➡️</button>
       <button class="dpad__btn dpad__btn--down" data-dir="down" type="button" aria-label="Down">⬇️</button>
     </div>
 
-    <p class="hint">
-      Tip: swipe the board or press the <kbd>arrow keys</kbd> to turn. Eat the dot to grow!
+    <p class="hint" data-testid="snake-hint">
+      Tip: <strong>tap</strong> the board to turn toward your finger, <strong>swipe</strong> to dash a
+      direction, or use the arrows below. Eat the dot to grow!
     </p>
 
     <script src="game.js"></script>

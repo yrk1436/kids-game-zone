@@ -5,31 +5,30 @@
 
 body.game-page {
   background: linear-gradient(180deg, #8fe0ff 0%, #cdf3ff 45%, #d7ffe4 100%);
-  overflow: hidden; /* the game should never scroll */
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Room for header + d-pad + hint; board height is derived from what's left. */
+  --snake-chrome: clamp(13.5rem, 28vh, 17rem);
 }
 
 /* --------------------------------------------------------------------------
-   The stage is a fixed 3:2 box so the board keeps its shape on every screen.
-   Height is capped so the top bar, the D-pad and the hint all stay visible on
-   a laptop or a landscape tablet.
+   Responsive stage: fills leftover viewport (large on Tesla/desktop, fits iPhone).
    -------------------------------------------------------------------------- */
 .stage {
   position: relative;
-  width: min(100%, calc(var(--stage-max-h) * 1.5));
-  max-width: 720px;
-  aspect-ratio: 3 / 2;
+  flex: 0 0 auto;
   margin: 0 auto;
+  width: min(96vw, calc((100dvh - var(--snake-chrome)) * 1.5), 1680px);
+  aspect-ratio: 3 / 2;
+  max-height: calc(100dvh - var(--snake-chrome));
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 6px solid #fff;
   box-shadow: var(--shadow-soft);
-  /* Stop the browser scrolling / zooming when a kid swipes to turn. */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
-
-  --stage-max-h: 50vh;
 }
 
 canvas {
@@ -39,7 +38,7 @@ canvas {
 }
 
 /* --------------------------------------------------------------------------
-   On-screen D-pad (sits below the board, always visible for touch play)
+   On-screen D-pad
    -------------------------------------------------------------------------- */
 .dpad {
   display: grid;
@@ -47,7 +46,8 @@ canvas {
   grid-template-rows: repeat(2, auto);
   justify-content: center;
   gap: 0.4rem;
-  margin: 0 auto;
+  margin: 0.4rem auto 0;
+  flex-shrink: 0;
 }
 
 .dpad__btn {
@@ -70,7 +70,6 @@ canvas {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Lay the four arrows out in a plus shape inside the 3x2 grid. */
 .dpad__btn--up {
   grid-column: 2;
   grid-row: 1;
@@ -100,8 +99,27 @@ canvas {
   outline-offset: 3px;
 }
 
+/* Larger arrows on wide / tall screens (Tesla, desktop). */
+@media (min-width: 900px) {
+  .dpad {
+    gap: 0.65rem;
+  }
+  .dpad__btn {
+    width: clamp(84px, 7vw, 118px);
+    height: clamp(84px, 7vw, 118px);
+    font-size: clamp(2rem, 3.5vw, 2.75rem);
+    border-radius: 22px;
+  }
+}
+
+@media (min-height: 850px) and (min-width: 700px) {
+  body.game-page {
+    --snake-chrome: clamp(12rem, 22vh, 15rem);
+  }
+}
+
 /* --------------------------------------------------------------------------
-   Level chip in the top bar - pulses each time a new level starts
+   Level chip
    -------------------------------------------------------------------------- */
 .score-chip--level {
   border-color: var(--teal);
@@ -126,8 +144,7 @@ canvas {
 }
 
 /* --------------------------------------------------------------------------
-   Overlays (start / paused / game over) sit on top of the board as real HTML
-   so the buttons are big, tappable and keyboard accessible.
+   Overlays
    -------------------------------------------------------------------------- */
 .overlay {
   position: absolute;
@@ -139,6 +156,7 @@ canvas {
   background: rgba(31, 42, 68, 0.35);
   backdrop-filter: blur(3px);
   animation: overlay-in 0.22s ease-out;
+  z-index: 5;
 }
 
 .overlay.is-hidden {
@@ -213,7 +231,6 @@ canvas {
   min-width: 190px;
 }
 
-/* "New Best Score!" celebration banner */
 .overlay__best {
   margin: 0.2rem 0 0.5rem;
   padding: 0.4rem 0.8rem;
@@ -251,34 +268,31 @@ kbd {
   color: var(--ink);
 }
 
-/* --------------------------------------------------------------------------
-   Hint line under the D-pad
-   -------------------------------------------------------------------------- */
 .hint {
-  margin: 0;
+  margin: 0.35rem auto 0.5rem;
+  padding: 0 0.75rem;
   text-align: center;
   font-size: clamp(0.85rem, 2.2vw, 1.05rem);
   font-weight: 700;
   color: var(--ink-soft);
+  flex-shrink: 0;
+  max-width: 52rem;
 }
 
-/* --------------------------------------------------------------------------
-   Small screens / short landscape tablets
-   -------------------------------------------------------------------------- */
 @media (max-width: 720px) {
+  body.game-page {
+    --snake-chrome: clamp(14.5rem, 34vh, 16.5rem);
+  }
   .game-bar__title {
     order: 3;
     width: 100%;
     text-align: center;
   }
-  .stage {
-    --stage-max-h: 42vh;
-  }
 }
 
 @media (max-height: 600px) {
-  .stage {
-    --stage-max-h: 46vh;
+  body.game-page {
+    --snake-chrome: 11.5rem;
   }
   .hint {
     display: none;

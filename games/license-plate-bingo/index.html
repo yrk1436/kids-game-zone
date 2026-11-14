@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>License Plate Bingo — Badri's Game Zone</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚘</text></svg>"
+    />
+    <link rel="stylesheet" href="../../style.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body class="game-page">
+    <header class="game-bar">
+      <a class="btn btn--purple" href="../../index.html">⬅️ Back to Games</a>
+      <h1 class="game-bar__title">🚘 License Plate Bingo</h1>
+
+      <div class="scoreboard" id="scoreboard1P">
+        <div class="score-chip">
+          <span class="score-chip__label">Marked</span>
+          <span class="score-chip__value" id="markedCount">0</span>
+        </div>
+        <div class="score-chip score-chip--trip">
+          <span class="score-chip__label">Trip Total</span>
+          <span class="score-chip__value" id="tripTotal">0</span>
+        </div>
+      </div>
+
+      <div class="scoreboard scoreboard--2p is-hidden" id="scoreboard2P">
+        <div class="score-chip score-chip--p1">
+          <span class="score-chip__label">Player 1</span>
+          <span class="score-chip__value" id="p1Score">0</span>
+        </div>
+        <div class="score-chip score-chip--p2">
+          <span class="score-chip__label">Player 2</span>
+          <span class="score-chip__value" id="p2Score">0</span>
+        </div>
+      </div>
+
+      <div class="bar-buttons">
+        <button class="btn btn--blue btn--icon" id="helpButton" type="button" title="How to play">?</button>
+        <button
+          class="btn btn--orange btn--icon"
+          id="soundButton"
+          type="button"
+          aria-pressed="true"
+          title="Turn sound on or off"
+        >
+          🔊
+        </button>
+      </div>
+    </header>
+
+    <div class="player-bar is-hidden" id="playerBar" data-testid="player-bar">
+      <span class="player-bar__label">This plate goes to:</span>
+      <button class="player-toggle player-toggle--p1 is-active" id="playerToggle" type="button" data-testid="player-toggle">
+        <span id="currentPlayerLabel">Player 1 🔵</span>
+      </button>
+    </div>
+
+    <div class="bingo-wrap" id="stage" data-testid="stage">
+      <div class="status-line" id="statusLine" data-testid="status-line">Get 5 in a row for BINGO!</div>
+      <div class="bingo-grid" id="bingoGrid" data-testid="bingo-grid"></div>
+
+      <aside class="trip-panel" data-testid="trip-panel">
+        <h2 class="trip-panel__title">States spotted this trip</h2>
+        <p class="trip-panel__count"><strong id="tripListCount">0</strong> unique states</p>
+        <ul class="trip-list" id="tripList" data-testid="trip-list"></ul>
+        <button class="btn btn--orange trip-panel__reset" id="resetTripButton" type="button" data-testid="reset-trip">
+          Reset trip list
+        </button>
+      </aside>
+
+      <div class="overlay" id="startOverlay" data-testid="start-overlay">
+        <div class="overlay__card">
+          <p class="overlay__emoji">🗺️</p>
+          <h2 class="overlay__title">License Plate Bingo!</h2>
+          <p class="overlay__text">
+            When you see a state's plate, <strong>tap</strong> it on the card. Get five in a row for BINGO!
+          </p>
+          <p class="overlay__text overlay__text--small">How many players?</p>
+          <div class="player-pick" data-testid="player-pick">
+            <button class="btn btn--green overlay__btn player-pick__btn" id="start1P" type="button">1 Player ▶</button>
+            <button class="btn btn--pink overlay__btn player-pick__btn" id="start2P" type="button">2 Players ▶</button>
+          </div>
+          <button class="btn btn--blue overlay__btn" id="startHelpButton" type="button">How to Play ?</button>
+        </div>
+      </div>
+
+      <div class="overlay is-hidden" id="bingoOverlay" data-testid="bingo-overlay">
+        <div class="overlay__card overlay__card--win">
+          <p class="overlay__emoji">🎊</p>
+          <h2 class="overlay__title">BINGO!</h2>
+          <p class="overlay__text">You got five in a row! Keep going for a blackout!</p>
+          <p class="overlay__text is-hidden" id="bingoWinnerText" data-testid="winner-text"></p>
+          <button class="btn btn--green overlay__btn" id="keepPlayingButton" type="button">Keep Playing ▶</button>
+        </div>
+      </div>
+
+      <div class="overlay is-hidden" id="blackoutOverlay" data-testid="blackout-overlay">
+        <div class="overlay__card overlay__card--win">
+          <p class="overlay__emoji">🏆</p>
+          <h2 class="overlay__title">BLACKOUT!</h2>
+          <p class="overlay__text">Every state marked — amazing road trip!</p>
+          <p class="overlay__text is-hidden" id="blackoutWinnerText" data-testid="blackout-winner-text"></p>
+          <div class="overlay__buttons">
+            <button class="btn btn--green overlay__btn" id="newCardButton" type="button">New Card 🔁</button>
+            <a class="btn btn--purple overlay__btn" href="../../index.html">⬅️ Back to Games</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay is-hidden" id="helpOverlay">
+        <div class="overlay__card overlay__card--help">
+          <h2 class="overlay__title">How to Play</h2>
+          <div class="help-content">
+            <p>Tap a state when you see its license plate. The center square is FREE.</p>
+            <p>Win with 5 in a row — up, down, sideways, or diagonal. Then try to mark every square!</p>
+            <p>Your trip list saves in this browser until you tap Reset.</p>
+          </div>
+          <button class="btn btn--green overlay__btn" id="closeHelpButton" type="button">Got it!</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint">Tip: Northeast states show up more — great for New Jersey road trips!</p>
+    <script src="game.js"></script>
+  </body>
+</html>
