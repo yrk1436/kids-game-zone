@@ -51,7 +51,8 @@ body.game-page {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  width: min(100%, 720px);
+  width: min(96vw, 1280px, calc((100dvh - 9rem) * 1.15));
+  max-height: calc(100dvh - 9rem);
   margin: 0 auto;
   border-radius: var(--radius-lg);
   overflow: hidden;

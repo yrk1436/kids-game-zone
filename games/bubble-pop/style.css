@@ -5,18 +5,18 @@
 
 body.game-page {
   background: linear-gradient(180deg, #a8e6ff 0%, #d4f1ff 40%, #ffe8f8 100%);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  --game-chrome: clamp(11rem, 22vh, 14rem);
 }
 
 /* --------------------------------------------------------------------------
-   The stage is a fixed 4:3 box so the canvas keeps its shape on every screen.
-   Width shrinks to fit narrow screens; height is capped so the top bar and the
-   hint line always stay visible on a laptop or a landscape tablet.
+   Responsive 4:3 stage
    -------------------------------------------------------------------------- */
 .stage {
   position: relative;
-  width: min(100%, calc(var(--stage-max-h) * 1.33));
-  max-width: 900px;
+  width: min(96vw, calc((100dvh - var(--game-chrome)) * 1.333), 1540px);
+  max-height: calc(100dvh - var(--game-chrome));
   aspect-ratio: 4 / 3;
   margin: 0 auto;
   border-radius: var(--radius-lg);
@@ -27,8 +27,6 @@ body.game-page {
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
-
-  --stage-max-h: 68vh;
 }
 
 canvas {
@@ -455,13 +453,13 @@ canvas {
    Small screens / short landscape tablets
    -------------------------------------------------------------------------- */
 @media (max-width: 720px) {
+  body.game-page {
+    --game-chrome: clamp(12.5rem, 28vh, 15rem);
+  }
   .game-bar__title {
     order: 3;
     width: 100%;
     text-align: center;
-  }
-  .stage {
-    --stage-max-h: 52vh;
   }
   .score-chip--lives .score-chip__value {
     font-size: 0.85rem;
@@ -476,8 +474,8 @@ canvas {
 }
 
 @media (max-height: 520px) {
-  .stage {
-    --stage-max-h: 60vh;
+  body.game-page {
+    --game-chrome: 10rem;
   }
   .hint {
     display: none;

@@ -199,29 +199,87 @@
     for (const b of dpad.querySelectorAll(".dpad__btn")) b.classList.remove("is-active");
   }
 
-  // --- Swipe on the board --------------------------------------------------
+  // --- Swipe + tap-to-turn on the board ------------------------------------
+  const TAP_MOVE_PX = 18; // short movement counts as a tap, not a swipe
+  const SWIPE_MIN_PX = 24; // deliberate drag starts swipe handling
+
   let swipeStart = null;
 
   stage.addEventListener("pointerdown", function (event) {
-    if (event.target.closest("button, a")) return; // let overlay buttons work
-    swipeStart = { x: event.clientX, y: event.clientY };
+    if (event.target.closest("button, a")) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    swipeStart = { x: event.clientX, y: event.clientY, id: event.pointerId };
+    try {
+      stage.setPointerCapture(event.pointerId);
+    } catch (err) {
+      /* ignore */
+    }
   });
 
   stage.addEventListener("pointerup", function (event) {
-    if (!swipeStart) return;
+    if (!swipeStart || swipeStart.id !== event.pointerId) return;
     const dx = event.clientX - swipeStart.x;
     const dy = event.clientY - swipeStart.y;
+    const start = swipeStart;
     swipeStart = null;
+    try {
+      stage.releasePointerCapture(event.pointerId);
+    } catch (err) {
+      /* ignore */
+    }
 
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
-    // A tap (no real movement) just starts the game if we're on the menu.
-    if (absX < 24 && absY < 24) {
-      if (phase === "ready") startRun();
+    const travel = Math.max(absX, absY);
+
+    if (travel < TAP_MOVE_PX) {
+      if (phase === "ready") {
+        resumeAudio();
+        startRun();
+        return;
+      }
+      if (phase === "running" || phase === "paused") {
+        if (phase === "paused") resumeRun();
+        tapTurnToward(event.clientX, event.clientY);
+      }
       return;
     }
-    handleDirectionInput(absX > absY ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up");
+
+    if (travel >= SWIPE_MIN_PX) {
+      handleDirectionInput(absX > absY ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up");
+    }
   });
+
+  stage.addEventListener("pointercancel", function () {
+    swipeStart = null;
+  });
+
+  /**
+   * Turn toward a screen point: dominant axis from head, no direct reversal
+   * (reversals are dropped in step() like other inputs).
+   */
+  function tapTurnToward(clientX, clientY) {
+    if (phase !== "running") return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const wx = ((clientX - rect.left) / rect.width) * WORLD_W;
+    const wy = ((clientY - rect.top) / rect.height) * WORLD_H;
+    const head = game.snake[0];
+    const hx = head.x * CONFIG.CELL + CONFIG.CELL / 2;
+    const hy = head.y * CONFIG.CELL + CONFIG.CELL / 2;
+    const dx = wx - hx;
+    const dy = wy - hy;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    if (absX < 6 && absY < 6) return;
+
+    let dirName;
+    if (absX >= absY) dirName = dx > 0 ? "right" : "left";
+    else dirName = dy > 0 ? "down" : "up";
+
+    handleDirectionInput(dirName);
+  }
 
   /**
    * Turn the snake. The first input also kicks off the run. Turns are queued
@@ -845,4 +903,42 @@
   phase = "ready";
   showOverlay(startOverlay);
   requestAnimationFrame(loop);
+
+  /** Playwright hooks — read-only game state for E2E (no rule changes). */
+  window.__snakeTestApi = {
+    getPhase: function () {
+      return phase;
+    },
+    getDir: function () {
+      return { x: game.dir.x, y: game.dir.y };
+    },
+    getDirName: function () {
+      if (game.dir.x > 0) return "right";
+      if (game.dir.x < 0) return "left";
+      if (game.dir.y > 0) return "down";
+      return "up";
+    },
+    getHead: function () {
+      return { x: game.snake[0].x, y: game.snake[0].y };
+    },
+    getScore: function () {
+      return game.score;
+    },
+    getLength: function () {
+      return game.snake.length;
+    },
+    getTurnQueue: function () {
+      return game.turnQueue.slice();
+    },
+    setFood: function (x, y) {
+      game.food.x = x;
+      game.food.y = y;
+    },
+    forceGameOver: function () {
+      if (phase === "running") endRun(false);
+    },
+    stepOnce: function () {
+      if (phase === "running") step();
+    },
+  };
 })();
