@@ -73,6 +73,9 @@
      2. STATE
      ====================================================================== */
   let phase = "ready";
+  let gameplaySuspended = false;
+  let pausedForTabHidden = false;
+  let pauseStartedAt = 0;
 
   const game = {
     score: 0,
@@ -91,6 +94,11 @@
     holes: [],
     moles: [],
     spawnTimer: null,
+    spawnDueAt: 0,
+    spawnRemainingMs: null,
+    freezeVisualTimeout: null,
+    freezeVisualEndAt: 0,
+    freezeVisualRemainingMs: null,
 
     seenSpecials: loadSeenSpecials(),
     pendingIntro: null,
@@ -158,8 +166,76 @@
         type: "normal",
         helmetHits: 0,
         hideTimeout: null,
+        hideDueAt: 0,
+        hideRemainingMs: null,
       });
     }
+  }
+
+  function isRunningPhase() {
+    return phase === "running";
+  }
+
+  /** Freeze timers while an overlay is open or the tab is hidden. */
+  function suspendGameplay() {
+    if (!isRunningPhase() || gameplaySuspended) return;
+    gameplaySuspended = true;
+  const now = Date.now();
+
+    if (game.spawnTimer) {
+      clearTimeout(game.spawnTimer);
+      game.spawnTimer = null;
+      game.spawnRemainingMs = Math.max(0, game.spawnDueAt - now);
+    }
+
+    game.holes.forEach(function (h) {
+      if (h.hideTimeout) {
+        clearTimeout(h.hideTimeout);
+        h.hideTimeout = null;
+      }
+      if (h.active && h.hideDueAt) {
+        h.hideRemainingMs = Math.max(0, h.hideDueAt - now);
+      }
+    });
+
+    if (game.freezeVisualTimeout) {
+      clearTimeout(game.freezeVisualTimeout);
+      game.freezeVisualTimeout = null;
+      game.freezeVisualRemainingMs = Math.max(0, game.freezeVisualEndAt - now);
+    }
+  }
+
+  function resumeGameplay() {
+    if (!gameplaySuspended) return;
+    const pausedMs = pauseStartedAt ? Date.now() - pauseStartedAt : 0;
+    gameplaySuspended = false;
+    pauseStartedAt = 0;
+
+    if (pausedMs > 0) {
+      game.freezeEndTime += pausedMs;
+      game.lastBonkTime += pausedMs;
+    }
+
+    if (phase !== "running") return;
+
+    game.holes.forEach(function (h, idx) {
+      if (h.active && h.hideRemainingMs != null) {
+        scheduleMoleHide(idx, h.hideRemainingMs);
+      }
+    });
+
+    if (game.freezeVisualRemainingMs != null) {
+      rescheduleFreezeVisual(game.freezeVisualRemainingMs);
+    } else if (Date.now() < game.freezeEndTime) {
+      rescheduleFreezeVisual(Math.max(0, game.freezeEndTime - Date.now()));
+    }
+
+    scheduleNextSpawn(game.spawnRemainingMs);
+    game.spawnRemainingMs = null;
+  }
+
+  function markPauseStart() {
+    pauseStartedAt = Date.now();
   }
 
   function renderLives() {
@@ -214,14 +290,34 @@
     });
   }
 
-  function scheduleNextSpawn() {
+  function scheduleNextSpawn(optionalDelay) {
     if (phase !== "running") return;
     const settings = getLevelSettings();
-    const delay = getEffectiveSpeed(settings.spawnMs);
-    game.spawnTimer = setTimeout(() => {
+    const delay =
+      optionalDelay !== undefined && optionalDelay !== null
+        ? optionalDelay
+        : getEffectiveSpeed(settings.spawnMs);
+    game.spawnDueAt = Date.now() + delay;
+    game.spawnRemainingMs = null;
+    game.spawnTimer = setTimeout(function () {
+      game.spawnTimer = null;
       spawnMole();
       scheduleNextSpawn();
     }, delay);
+  }
+
+  function scheduleMoleHide(index, delay) {
+    const hole = game.holes[index];
+    if (!hole.active) return;
+    const ms = Math.max(0, delay);
+    hole.hideDueAt = Date.now() + ms;
+    hole.hideRemainingMs = null;
+    hole.hideTimeout = setTimeout(function () {
+      hole.hideTimeout = null;
+      if (hole.active && phase === "running") {
+        moleMissed(index);
+      }
+    }, ms);
   }
 
   function spawnMole() {
@@ -260,11 +356,7 @@
     }
 
     const visibleMs = getEffectiveSpeed(settings.visibleMs);
-    hole.hideTimeout = setTimeout(() => {
-      if (hole.active && phase === "running") {
-        moleMissed(idx);
-      }
-    }, visibleMs);
+    scheduleMoleHide(idx, visibleMs);
   }
 
   function pickMoleType() {
@@ -291,7 +383,7 @@
      6. MOLE INTERACTIONS
      ====================================================================== */
   function onHoleTap(index) {
-    if (phase !== "running") return;
+    if (phase !== "running" || gameplaySuspended) return;
     const hole = game.holes[index];
 
     if (!hole.active) {
@@ -473,10 +565,26 @@
 
   function activateFreeze() {
     game.freezeEndTime = Date.now() + CONFIG.FREEZE_DURATION_MS;
-    stage.classList.add("is-frozen");
-    setTimeout(() => {
+    rescheduleFreezeVisual(CONFIG.FREEZE_DURATION_MS);
+  }
+
+  function rescheduleFreezeVisual(remainingMs) {
+    if (game.freezeVisualTimeout) {
+      clearTimeout(game.freezeVisualTimeout);
+      game.freezeVisualTimeout = null;
+    }
+    const remaining = Math.max(0, remainingMs);
+    game.freezeVisualRemainingMs = null;
+    if (remaining <= 0) {
       stage.classList.remove("is-frozen");
-    }, CONFIG.FREEZE_DURATION_MS);
+      return;
+    }
+    game.freezeVisualEndAt = Date.now() + remaining;
+    stage.classList.add("is-frozen");
+    game.freezeVisualTimeout = setTimeout(function () {
+      game.freezeVisualTimeout = null;
+      stage.classList.remove("is-frozen");
+    }, remaining);
   }
 
   /* ======================================================================
@@ -528,7 +636,8 @@
     if (game.seenSpecials[type]) return;
 
     game.pendingIntro = type;
-    pauseForIntro();
+    markPauseStart();
+    suspendGameplay();
 
     const info = SPECIAL_INFO[type];
     newSpecialIcon.textContent = info.icon;
@@ -536,6 +645,7 @@
     newSpecialTitle.textContent = info.title;
     newSpecialDesc.textContent = info.desc;
 
+    phase = "intro";
     showOverlay(newSpecialOverlay);
   }
 
@@ -546,17 +656,8 @@
       game.pendingIntro = null;
     }
     hideOverlay(newSpecialOverlay);
-    resumeFromIntro();
-  }
-
-  function pauseForIntro() {
-    stopSpawning();
-  }
-
-  function resumeFromIntro() {
-    if (phase === "running") {
-      startSpawning();
-    }
+    phase = "running";
+    resumeGameplay();
   }
 
   /* ======================================================================
@@ -585,13 +686,16 @@
 
     updateScoreDisplay();
     phase = "running";
+    gameplaySuspended = false;
+    pauseStartedAt = 0;
     startSpawning();
   }
 
   function pauseRun() {
     if (phase !== "running") return;
+    markPauseStart();
+    suspendGameplay();
     phase = "paused";
-    stopSpawning();
     showOverlay(pauseOverlay);
   }
 
@@ -599,7 +703,7 @@
     if (phase !== "paused") return;
     hideOverlay(pauseOverlay);
     phase = "running";
-    startSpawning();
+    resumeGameplay();
   }
 
   function endRun() {
@@ -693,7 +797,11 @@
   });
 
   document.getElementById("helpButton").addEventListener("click", () => {
-    if (phase === "running") pauseRun();
+    if (phase === "running") {
+      markPauseStart();
+      suspendGameplay();
+      phase = "paused";
+    }
     showOverlay(helpOverlay);
   });
 
@@ -713,13 +821,27 @@
     dismissIntro();
   });
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden && phase === "running") pauseRun();
-  });
-
-  window.addEventListener("blur", () => {
-    if (phase === "running") pauseRun();
-  });
+  if (window.BadriOverlayPause) {
+    window.BadriOverlayPause.installVisibilityPause({
+      isRunning: function () {
+        return phase === "running";
+      },
+      onPause: function () {
+        pausedForTabHidden = true;
+        markPauseStart();
+        suspendGameplay();
+        phase = "paused";
+        showOverlay(pauseOverlay);
+      },
+      onResume: function () {
+        if (!pausedForTabHidden || phase !== "paused") return;
+        pausedForTabHidden = false;
+        hideOverlay(pauseOverlay);
+        phase = "running";
+        resumeGameplay();
+      },
+    });
+  }
 
   /* ======================================================================
      13. LOCAL STORAGE
@@ -885,4 +1007,19 @@
   renderSoundButton();
   updateScoreDisplay();
   showOverlay(startOverlay);
+
+  if (/\btest=1\b/.test(location.search)) {
+    CONFIG.LEVEL_SETTINGS.forEach(function (row) {
+      row.spawnMs = Math.max(row.spawnMs, 4000);
+      row.visibleMs = Math.max(row.visibleMs, 5000);
+    });
+    window.__getWhackState = function () {
+      return {
+        phase: phase,
+        lives: game.lives,
+        score: game.score,
+        level: game.level,
+      };
+    };
+  }
 })();

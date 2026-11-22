@@ -1674,15 +1674,23 @@
     }
   });
 
-  document.addEventListener("visibilitychange", () => {
-    if (game.testMode) return;
-    if (document.hidden && phase === "running") pauseGame();
-  });
-
-  window.addEventListener("blur", () => {
-    if (game.testMode) return;
-    if (phase === "running") pauseGame();
-  });
+  let pausedForTabHidden = false;
+  if (window.BadriOverlayPause) {
+    window.BadriOverlayPause.installVisibilityPause({
+      isRunning: function () {
+        return !game.testMode && phase === "running";
+      },
+      onPause: function () {
+        pausedForTabHidden = true;
+        pauseGame();
+      },
+      onResume: function () {
+        if (!pausedForTabHidden || phase !== "paused") return;
+        pausedForTabHidden = false;
+        resumeGame();
+      },
+    });
+  }
 
   /* ======================================================================
      17. LOCAL STORAGE

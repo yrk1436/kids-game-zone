@@ -183,6 +183,12 @@ body {
   display: grid;
   gap: clamp(1rem, 3vw, 1.75rem);
   grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  align-items: stretch;
+}
+
+.tile-grid > li {
+  display: flex;
+  min-width: 0;
 }
 
 .tile {
@@ -192,8 +198,11 @@ body {
   align-items: center;
   justify-content: flex-start;
   gap: 0.35rem;
+  flex: 1;
+  width: 100%;
+  aspect-ratio: 5 / 6;
   padding: 1.5rem 1rem 1.6rem;
-  min-height: 220px;
+  min-height: 0;
   text-align: center;
   text-decoration: none;
   color: var(--ink);
@@ -227,6 +236,12 @@ body {
   font-size: clamp(1.15rem, 3.2vw, 1.5rem);
   font-weight: 800;
   margin: 0;
+  line-height: 1.2;
+  min-height: 2.4em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-wrap: balance;
 }
 
 .tile__tagline {
