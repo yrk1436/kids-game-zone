@@ -1182,13 +1182,25 @@
     hideHelp();
   });
 
-  document.addEventListener("visibilitychange", function () {
-    if (document.hidden && phase === "running") pauseRun();
-    lastTime = 0;
-  });
-  window.addEventListener("blur", function () {
-    if (phase === "running") pauseRun();
-  });
+  let pausedForTabHidden = false;
+  if (window.BadriOverlayPause) {
+    window.BadriOverlayPause.installVisibilityPause({
+      isRunning: function () {
+        return phase === "running";
+      },
+      onPause: function () {
+        pausedForTabHidden = true;
+        pauseRun();
+        lastTime = 0;
+      },
+      onResume: function () {
+        if (!pausedForTabHidden || phase !== "paused") return;
+        pausedForTabHidden = false;
+        resumeRun();
+        lastTime = 0;
+      },
+    });
+  }
 
   /* --- localStorage ------------------------------------------------------- */
   function loadBest() {

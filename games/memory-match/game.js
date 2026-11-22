@@ -591,9 +591,23 @@
     helpReturnPhase = null;
   });
 
-  document.addEventListener("visibilitychange", function () {
-    if (document.hidden && phase === "playing") pauseRun();
-  });
+  let pausedForTabHidden = false;
+  if (window.BadriOverlayPause) {
+    window.BadriOverlayPause.installVisibilityPause({
+      isRunning: function () {
+        return phase === "playing";
+      },
+      onPause: function () {
+        pausedForTabHidden = true;
+        pauseRun();
+      },
+      onResume: function () {
+        if (!pausedForTabHidden || phase !== "paused") return;
+        pausedForTabHidden = false;
+        resumeRun();
+      },
+    });
+  }
 
   /* ======================================================================
      14. BOOT

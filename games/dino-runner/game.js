@@ -942,13 +942,25 @@
     resumeRun();
   });
 
-  // Auto-pause if the tab is hidden or the window loses focus, so the dino
-  // isn't quietly crashing while nobody is watching.
-  document.addEventListener("visibilitychange", function () {
-    if (document.hidden) pauseRun();
-    lastTime = 0;
-  });
-  window.addEventListener("blur", pauseRun);
+  let pausedForTabHidden = false;
+  if (window.BadriOverlayPause) {
+    window.BadriOverlayPause.installVisibilityPause({
+      isRunning: function () {
+        return phase === "running";
+      },
+      onPause: function () {
+        pausedForTabHidden = true;
+        pauseRun();
+        lastTime = 0;
+      },
+      onResume: function () {
+        if (!pausedForTabHidden || phase !== "paused") return;
+        pausedForTabHidden = false;
+        resumeRun();
+        lastTime = 0;
+      },
+    });
+  }
 
   /* --- Best score in localStorage ----------------------------------------- */
   function loadBest() {

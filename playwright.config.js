@@ -2,7 +2,7 @@
 const { defineConfig, devices } = require('@playwright/test');
 
 const iPhone17Pro = {
-  ...devices['iPhone 13 Pro'],
+  ...devices['Desktop Chrome'],
   viewport: { width: 402, height: 874 },
   deviceScaleFactor: 3,
   isMobile: true,
